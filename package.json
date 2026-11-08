@@ -1,0 +1,19 @@
+{
+  "name": "beqson-qa-automation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-world Playwright and TypeScript QA portfolio for BEQSON Digital Studio",
+  "scripts": {
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium",
+    "test:mobile": "playwright test --project=mobile-chrome",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "check:types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@playwright/test": "^1.65.0",
+    "typescript": "^5.9.3"
+  }
+}
