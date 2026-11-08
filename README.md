@@ -1,17 +1,19 @@
 # BEQSON QA Automation
 
+[![Playwright Regression](https://github.com/Bequcho/beqson-qa-automation/actions/workflows/playwright.yml/badge.svg?branch=main)](https://github.com/Bequcho/beqson-qa-automation/actions/workflows/playwright.yml)
+
 A Playwright and TypeScript portfolio project for the multilingual [BEQSON Digital Studio website](https://beqson.com). The suite covers public navigation, localization, calculator behavior, client-side validation and mobile menu interactions.
 
 The project is self-contained. It does not require the production source repository, a website build, customer data or production credentials.
 
-**CI status: prepared locally; no hosted CI result is claimed in this initial release.** Previous local passes do not establish an Ubuntu CI pass. The authorized standalone target is [Bequcho/beqson-qa-automation](https://github.com/Bequcho/beqson-qa-automation).
+**Verified CI:** On November 8, 2026, the first [Playwright Regression run](https://github.com/Bequcho/beqson-qa-automation/actions/runs/42474856816) passed all four browser jobs on GitHub-hosted Ubuntu: Chromium, Firefox, WebKit and Mobile Chrome. The suite contains **15 unique test scenarios**; across the four profiles, the run recorded **54 Passed, 0 Failed and 6 expected Skipped**. The skips are the two mobile-only navigation tests in each desktop profile, not missing scenarios.
 
 ## Technology
 
 - Node.js 24 and npm, with reproducible dependencies from package-lock.json.
 - Playwright Test; the current lockfile selects version 1.65.0.
 - TypeScript, checked with `tsc --noEmit`.
-- A prepared GitHub Actions workflow on GitHub-hosted Ubuntu 24.04.
+- GitHub Actions CI on GitHub-hosted Ubuntu 24.04.
 
 ## Coverage and browser profiles
 
@@ -82,7 +84,7 @@ $env:BEQSON_BASE_URL='http://127.0.0.1:8000'
 npm.cmd run test:chromium
 ```
 
-This QA project does not start or contain the production website. The prepared CI workflow fixes its target to the public site and needs no production secrets.
+This QA project does not start or contain the production website. The CI workflow fixes its target to the public site and needs no production secrets.
 
 ## Reports and traces
 
@@ -95,11 +97,11 @@ npx playwright show-trace path/to/trace.zip
 
 The config retains screenshots/video on failure. Use `--trace=on` when successful traces are also needed. Reusing default output directories can replace previous output; choose separate output/report paths when preserving a sequence.
 
-Historical `qa-reports/`, local traces and recordings are ignored by Git. They remain local and are excluded from the intended repository.
+Historical `qa-reports/`, local traces and recordings are ignored by Git. They remain local and are excluded from the repository.
 
-## Prepared GitHub Actions CI
+## GitHub Actions CI
 
-[.github/workflows/playwright.yml](.github/workflows/playwright.yml) supports manual execution and future pushes/pull requests targeting `main`, after approved publication.
+[.github/workflows/playwright.yml](.github/workflows/playwright.yml) supports manual execution, pushes to `main` and pull requests targeting `main`. The first successful run was triggered by a push; pull-request and manual triggers require separate verification.
 
 Each job checks out the QA repository, selects Node.js 24, runs `npm ci` and `npm run check:types`, installs its assigned browser/Linux dependencies, and runs only its assigned Playwright project.
 
@@ -113,13 +115,13 @@ Each job checks out the QA repository, selects Node.js 24, runs `npm ci` and `np
 
 Only fresh `ci-artifacts/<project>/` output is uploaded: HTML, JSON, console log and test evidence. Artifact names include project, run ID and attempt. Retention is 14 days, subject to repository policy. Historical reports are never selected. An early setup failure may leave no files; upload warns while the job remains failed.
 
-After a real GitHub run, open **Actions → Playwright Regression → the run → Artifacts**. Download/extract the profile artifact and serve its HTML report:
+To inspect a GitHub run, open **Actions → Playwright Regression → the run → Artifacts**. Download/extract the profile artifact and serve its HTML report:
 
 ```bash
 npx playwright show-report path/to/extracted-artifact/html-report
 ```
 
-No CI success badge or hosted report is claimed before an actual run. See [CI preparation and publication checklist](docs/ci.md).
+The badge above dynamically reports the workflow status for `main`; it is not a permanent success label or the status of an individual pull request. See [CI design and verification](docs/ci.md) for verified results and remaining checks.
 
 ## Production safety
 
@@ -132,7 +134,7 @@ No CI success badge or hosted report is claimed before an actual run. See [CI pr
 
 ## Known limitations
 
-- Local cross-browser results precede CI preparation. Ubuntu behavior, artifacts and GitHub triggers still require real-run verification.
+- The first hosted run verified the current assertions on Ubuntu, the push trigger and artifact upload. A single pass does not establish long-term stability; pull-request/manual triggers, artifact download/viewing and fork behavior need separate verification.
 - Firefox emitted `Image corrupt or truncated` during some language transitions, reproducible in isolated KA → EN runs despite passing assertions. Separate PNG integrity/decoding checks succeeded. This remains **an unresolved diagnostic observation, not a confirmed production defect**; its cause is not established and it has not been suppressed.
 - Tests do not fail on every console.error; passing assertions do not imply a clean browser console.
 - No full visual regression, physical-device coverage, CRM delivery or successful production-form submission is claimed.

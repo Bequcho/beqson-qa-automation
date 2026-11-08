@@ -1,8 +1,19 @@
-# CI preparation and standalone repository checklist
+# CI design and verification
 
 ## Status
 
-The workflow is prepared locally and has not run on GitHub. It targets a standalone QA repository and needs no production source checkout, website build, customer data or production credentials. Existing local Windows passes do not establish an Ubuntu CI pass.
+On November 8, 2026, the first [Playwright Regression run](https://github.com/Bequcho/beqson-qa-automation/actions/runs/42474856816) completed successfully on GitHub-hosted Ubuntu 24.04 after the initial push to `main`. All four browser jobs passed. The suite has **15 unique test scenarios**; the four profile executions recorded **54 Passed, 0 Failed and 6 expected Skipped**.
+
+| Profile | Passed | Failed | Expected Skipped |
+|---|---:|---:|---:|
+| Chromium | 13 | 0 | 2 |
+| Firefox | 13 | 0 | 2 |
+| WebKit | 13 | 0 | 2 |
+| Mobile Chrome | 15 | 0 | 0 |
+
+The two mobile-navigation scenarios are intentionally skipped in each desktop profile. Executing the same scenarios across profiles does not increase the unique case count. Dependency/browser installation, TypeScript validation, test execution and artifact upload succeeded in every job. This run verified the `push` trigger; `pull_request` and manual triggers require separate verification.
+
+The workflow targets the standalone [QA repository](https://github.com/Bequcho/beqson-qa-automation) and needs no production source checkout, website build, customer data or production credentials. See the [workflow page](https://github.com/Bequcho/beqson-qa-automation/actions/workflows/playwright.yml) for current runs; the README badge dynamically tracks `main`.
 
 ## Workflow design
 
@@ -60,18 +71,18 @@ Ordinary source PNG fixtures remain eligible for future Git tracking. Generated 
 
 Local validation covers TypeScript, workflow syntax, project/matrix references, lockfile consistency, intended source inventory and artifact/secret exclusions. A final local regression is useful, but no local validator executes GitHub's service or Ubuntu package installation.
 
-The first hosted run must verify action downloads/inputs, Ubuntu browser dependencies, all four assigned profiles, worker/retry policy, expected skips, artifact upload/download and report viewing. It must also assess the unresolved Firefox image-decoding observation on Linux. Manual, push and pull-request triggers, fork approvals, retention and repository permissions require actual GitHub verification.
+The first hosted run verified action downloads/inputs, Ubuntu browser dependencies, all four assigned profiles, the one-worker/zero-retry policy, expected skips and artifact upload. The run completed in 4 minutes 8 seconds. Artifact download/report viewing, manual and pull-request triggers, fork approvals and actual retention expiry remain separate checks.
 
-## Approval-dependent next steps
+The unresolved Firefox image-decoding observation described in the README was not independently diagnosed in this run. Passing assertions do not establish a clean browser console or prove the observation resolved. Mobile Chrome remains device emulation, and Linux WebKit does not establish physical iOS or macOS Safari coverage.
 
-Stage 7 authorization approves the initial publication as Bequcho/beqson-qa-automation, Public, main, MIT. The checklist below records the publication process; it does not authorize production deployment or additional corrective pushes after a CI failure without reporting that failure first.
+## Publication record and next steps
 
-1. Review the prepared files, source manifest and local validation report.
-2. Choose the owner, standalone repository name, visibility, default branch main and license.
-3. Confirm production test scope, Actions enablement, artifact retention/access and fork approval policy.
-4. Obtain explicit approval for Git initialization, repository creation, the first commit and push. Preparation does not authorize them.
-5. After approval, initialize/configure the standalone repository and stage the reviewed source allowlist. Inspect staged changes and repeat the credential/artifact audit.
-6. Publish only the QA source. Preserve historical evidence locally and exclude production source and credentials.
-7. Run Playwright Regression manually and inspect all four jobs before claiming CI success or adding a badge.
+Stage 7 published Bequcho/beqson-qa-automation as Public, with `main` as the default branch and the MIT License. The initial commit is [014bc1b495b7dbfbdcbf906ed54f632bfda59e66](https://github.com/Bequcho/beqson-qa-automation/commit/014bc1b495b7dbfbdcbf906ed54f632bfda59e66). Only the approved 14-file source/documentation allowlist was published; historical evidence remains local. GitHub Pages and deployment were not enabled.
+
+1. Use a documentation-only pull request to verify the `pull_request` trigger and all four browser checks.
+2. Gather repeated CI results before assessing long-term stability.
+3. Verify artifact download/report viewing and review retention/access and fork approval policy.
+4. Consider required checks and protection for `main` after PR verification; configure protection only with separate authorization.
+5. Report any CI failure before corrective commits or pushes, preserving the evidence and existing assertions.
 
 No step above authorizes deployment of the BEQSON website.
