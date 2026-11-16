@@ -25,7 +25,7 @@ test('official.voice-kit.02 stock-voice preview evidence probe', async ({ page, 
   test.skip(!existsSync(authState), 'BLOCKED:LOCAL_LOGIN_REQUIRED');
   const criterion = localCriterion();
   test.skip(!criterion?.reconciled || criterion.sourceTruncated, 'BLOCKED:FULL_CRITERION_REQUIRED');
-  test.skip(!/^Stock voices, ready now\s*$/.test(criterion.objective), 'BLOCKED:CRITERION_CHANGED');
+  test.skip(!/^Stock voices, ready now\s*$/.test(criterion?.objective || ''), 'BLOCKED:CRITERION_CHANGED');
 
   // Fail closed on all state changes and external navigation; only public audio samples are in scope.
   await context.route('**/*', async route => {
