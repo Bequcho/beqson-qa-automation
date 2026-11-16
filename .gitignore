@@ -45,3 +45,7 @@ temp/
 *.log
 *.tsbuildinfo
 Thumbs.db
+
+# aiKit QA local-only browser session and test reports (NEVER COMMIT).
+.aikit-local/
+aikit-qa-results/
