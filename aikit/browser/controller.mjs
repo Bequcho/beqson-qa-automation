@@ -6,6 +6,7 @@ import {atomicJson,readJson,lock} from '../lib/storage.mjs';
 import {Targets,describe} from './dom.mjs';
 import {allowedUrl,requestAllowed,authorizeAction} from './policy.mjs';
 import {validateBrowserCommand} from './protocol.mjs';
+import {classifyBrowserError} from './diagnostics.mjs';
 
 export class BrowserController {
   constructor({local,origin='https://aikit.ai',authSource,headless=true}={}) {
@@ -142,7 +143,7 @@ export class BrowserController {
           if(row.assertions.some(a=>!a.passed)){row.status='FAIL';row.reason='ASSERTION_FAILED';result.status='REVIEW_REQUIRED';result.reason='ASSERTION_FAILED';break;}
           row.status='PASS';row.reason=row.assertions.length?'ASSERTIONS_VERIFIED':'ACTION_OBSERVED';
         }catch(error) {
-          row.status='BLOCKED';row.reason=this.authBlocked?'LOCAL_LOGIN_REQUIRED':signal.aborted?(timeout.aborted?'EXECUTION_BUDGET_EXCEEDED':'INTERRUPTED'):/^[A-Z_]+$/.test(error.message)?error.message:'BROWSER_OPERATION_FAILED';
+          row.status='BLOCKED';row.reason=this.authBlocked?'LOCAL_LOGIN_REQUIRED':signal.aborted?(timeout.aborted?'EXECUTION_BUDGET_EXCEEDED':'INTERRUPTED'):/^[A-Z_]+$/.test(error.message)?error.message:classifyBrowserError(error);
           await writeFile(resolve(directory,'private-error.txt'),String(error.stack||error),{mode:0o600});
           result.status='BLOCKED';result.reason=row.reason;
           row.observation=await this.capture(directory,index).catch(()=>null);result.observation=row.observation;break;
