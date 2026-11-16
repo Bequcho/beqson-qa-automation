@@ -6,7 +6,7 @@ import { atomicJson, readJson, lock } from './storage.mjs';
 import { processCall } from './process.mjs';
 import { validate, CONTROLS } from './protocol.mjs';
 import { getChecklist, metrics, officialAttempt } from './checklist.mjs';
-import { parsePlaywright, counts, trackFindings } from './report.mjs';
+import { parsePlaywright, counts, trackFindings, reviewOnlyProbe } from './report.mjs';
 import { consumeLanguageApproval } from './authorization.mjs';
 import { checkBudget } from './budget.mjs';
 import { remainingSafeChecks, casePattern } from './resume.mjs';
@@ -56,10 +56,9 @@ export async function runCommand(command,params={},options={}) {
         const raw=await readJson(resolve(dir,'playwright.json'),null);
         if(raw) report.checks=parsePlaywright(raw);
         if(scenario==='official.voice-kit.02') {
+          // A passing preview is evidence, not a full official workflow PASS.
+          report.checks=report.checks.map(c=>c.scenarioId===scenario?reviewOnlyProbe(c):c);
           const probe=report.checks.find(c=>c.scenarioId===scenario);
-          // A successful read-only preview is evidence, NOT completion of stock
-          // voice assignment/reading or an official PASS. Review remains required.
-          if(probe?.status==='PASS') {probe.status='BLOCKED';probe.reason='FULL_WORKFLOW_REVIEW_REQUIRED';}
           const item=checklist?.scenarios.find(s=>s.id===scenario);
           if(item && probe) {
             item.attempts??=[];
