@@ -1,5 +1,7 @@
 # aiKit local QA automation
 
+The isolated interactive browser extension is documented in [INTERACTIVE.md](INTERACTIVE.md). It uses a separate protected session and `AIKIT-BROWSER:` queue lane; existing QA tasks and historical results remain independent.
+
 Node.js 24 + the repository's locked Playwright 1.65 / TypeScript 5.9 dependencies drive a dedicated local Chromium browser. No AI SDK, cloud browser, credit purchase, public callback server or paid automation dependency is used.
 
 The existing BEQSON tests/configuration remain separate. This directory extends the original aiKit bridge rather than changing the BEQSON production website.
