@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { atomicJson, readJson } from './storage.mjs';
 import { LOCAL, STATUSES, LOCALES } from './config.mjs';
+import { safeBrowserResult } from '../browser/privacy.mjs';
 
 export function parsePlaywright(report) {
   const rows=[];
@@ -30,6 +31,7 @@ export const counts=rows=>Object.fromEntries(STATUSES.map(s=>[s,rows.filter(r=>r
 // Explicit projection: browser text, errors, URLs, file paths, bug content and attachments NEVER leave the PC.
 export function safeSummary(report) {
   const out={version:2,runId:report.runId,command:report.command,outcome:report.outcome,counts:counts(report.checks||[]),suspected:(report.checks||[]).filter(c=>c.suspected).length,confirmed:(report.checks||[]).filter(c=>c.confirmed).length,officialItemsAutoCompleted:0};
+  if(report.browser)out.browser=safeBrowserResult(report.browser);
   if(/^[a-f0-9-]{36}$/.test(report.resumedFrom||'')) out.resumedFrom=report.resumedFrom;
   out.checkResults=(report.checks||[]).map(check=>({
     scenarioId:/^(?:public\.[a-z]+|auth\.projects|official\.[a-z-]+\.\d{2}|runner|official)$/.test(check.scenarioId||'')?check.scenarioId:'runner',

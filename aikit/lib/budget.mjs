@@ -13,4 +13,5 @@ export async function checkBudget(local) {
     }
   }
   await visit(resolve(local,'runs')).catch(error=>{if(error.code!=='ENOENT')throw error;});
+  await visit(resolve(local,'interactive','operations')).catch(error=>{if(error.code!=='ENOENT')throw error;});
 }

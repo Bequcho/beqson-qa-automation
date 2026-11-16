@@ -1,9 +1,11 @@
 import { ACTOR, LOCALES, CATEGORIES } from './config.mjs';
+import { BROWSER_COMMANDS, validateBrowserCommand } from '../browser/protocol.mjs';
 
-export const COMMANDS=Object.freeze(['PUBLIC_REMAINING','PUBLIC_ALL','AUTH_SMOKE','SAFE_CHECKS','RUN_SCENARIO','TEST_TOOL','RUN_NEXT','RESUME_CHECKLIST','RETEST','PROGRESS','LATEST','BLOCKED','PAUSE','RESUME','STOP']);
+export const COMMANDS=Object.freeze(['PUBLIC_REMAINING','PUBLIC_ALL','AUTH_SMOKE','SAFE_CHECKS','RUN_SCENARIO','TEST_TOOL','RUN_NEXT','RESUME_CHECKLIST','RETEST','PROGRESS','LATEST','BLOCKED','PAUSE','RESUME','STOP',...BROWSER_COMMANDS]);
 export const CONTROLS=new Set(['PROGRESS','LATEST','BLOCKED','PAUSE','RESUME','STOP']);
 const exactKeys=(object,allowed)=>object && typeof object==='object' && !Array.isArray(object) && Object.keys(object).every(key=>allowed.includes(key));
 export function validate(command,params={}) {
+  if(BROWSER_COMMANDS.includes(command))return validateBrowserCommand(command,params);
   if (!COMMANDS.includes(command) || !exactKeys(params,['locale','scenarioId','category','bugId','reviewIssue','reviewRunId','resumeRunId'])) throw Error('INVALID_COMMAND');
   const allowed={ SAFE_CHECKS:['resumeRunId'],RUN_SCENARIO:['scenarioId','locale'],TEST_TOOL:['category','locale'],RETEST:['bugId','scenarioId'],RESUME:['reviewIssue','reviewRunId'] }[command] || [];
   if (!exactKeys(params,allowed)) throw Error('UNSUPPORTED_PARAMETER');
@@ -17,10 +19,13 @@ export function validate(command,params={}) {
   return {command,params};
 }
 export function parseIssue(issue) {
-  if ((issue.user?.login||issue.author?.login)!==ACTOR || issue.pull_request || !Number.isSafeInteger(issue.number) || issue.number<1 || !issue.title?.startsWith('AIKIT-QA: ')) return null;
+  const prefix=issue.title?.startsWith('AIKIT-QA: ')?'AIKIT-QA: ':issue.title?.startsWith('AIKIT-BROWSER: ')?'AIKIT-BROWSER: ':null;
+  if ((issue.user?.login||issue.author?.login)!==ACTOR || issue.pull_request || !Number.isSafeInteger(issue.number) || issue.number<1 || !prefix) return null;
   const body=String(issue.body||'').replace(/\r\n/g,'\n').trim();
   if (body.length>4096) throw Error('REQUEST_TOO_LARGE');
-  const command=issue.title.slice(10);
+  const command=issue.title.slice(prefix.length);
+  if(prefix==='AIKIT-BROWSER: '&&!BROWSER_COMMANDS.includes(command)&&!CONTROLS.has(command))throw Error('BROWSER_LANE_COMMAND_REQUIRED');
+  if(prefix==='AIKIT-QA: '&&BROWSER_COMMANDS.includes(command))throw Error('BROWSER_LANE_PREFIX_REQUIRED');
   if (body===`AIKIT_QA_BRIDGE_V1\nTASK=${command}` && ['PUBLIC_REMAINING','PUBLIC_ALL','AUTH_SMOKE'].includes(command)) return validate(command);
   if (!body.startsWith('AIKIT_QA_BRIDGE_V2\n')) throw Error('INVALID_ENVELOPE');
   let data; try { data=JSON.parse(body.slice(19)); } catch { throw Error('INVALID_JSON'); }

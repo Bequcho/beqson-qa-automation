@@ -1,7 +1,7 @@
 name: aiKit bridge self-tests
 on:
   pull_request:
-    branches: [main, feature/aikit-round2-free-qa]
+    branches: [main, feature/aikit-round2-free-qa, codex/aikit-qa-bridge]
     paths: ['aikit/**', 'package.json', 'package-lock.json', '.github/workflows/aikit-bridge-checks.yml']
   workflow_dispatch:
 permissions:
@@ -22,3 +22,5 @@ jobs:
       - run: npm run check:types
       - run: npm run aikit:test
       - run: npm run aikit:check-public
+      - run: npx playwright install --with-deps chromium
+      - run: npm run aikit:browser-test

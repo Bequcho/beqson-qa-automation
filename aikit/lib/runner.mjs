@@ -10,6 +10,9 @@ import { parsePlaywright, counts, trackFindings } from './report.mjs';
 import { consumeLanguageApproval } from './authorization.mjs';
 import { checkBudget } from './budget.mjs';
 import { remainingSafeChecks, casePattern } from './resume.mjs';
+import { BROWSER_COMMANDS } from '../browser/protocol.mjs';
+import { interactiveController } from '../browser/service.mjs';
+import { safeReason } from '../browser/privacy.mjs';
 
 export async function runCommand(command,params={},options={}) {
   validate(command,params);
@@ -19,7 +22,13 @@ export async function runCommand(command,params={},options={}) {
   const report={version:2,runId,command,params,startedAt:new Date().toISOString(),finishedAt:null,outcome:'BLOCKED',checks:[]};
   try {
     const checklist=await getChecklist(local);
-    if(command==='PROGRESS') {
+    if(BROWSER_COMMANDS.includes(command)) {
+      await checkBudget(local);
+      report.browser=await interactiveController(local).execute(command,params,{runId,signal:options.signal});
+      report.outcome=report.browser.status;
+      report.checks=report.browser.steps.map(step=>({scenarioId:'browser.action',status:step.status,reason:safeReason(step.reason),actions:[step.op],actual:step.reason,expected:'Only explicit assertions establish expected browser behavior.',evidence:[],suspected:step.status==='FAIL',confirmed:false}));
+    }
+    else if(command==='PROGRESS') {
       const known=await readJson(resolve(local,'known-issues.json'),{issues:[]});
       report.progress={...(checklist?metrics(checklist):{total:0}),confirmedFindings:known.issues.filter(i=>i.confirmed).length,suspectedFindings:known.issues.filter(i=>!i.confirmed&&!i.disposition).length};report.outcome='COMPLETED';
     }
@@ -68,7 +77,7 @@ export async function runCommand(command,params={},options={}) {
     report.finishedAt=new Date().toISOString();
     await atomicJson(resolve(dir,'report.json'),report);
     await writeFile(resolve(dir,'report.md'),`# aiKit QA run ${runId}\n\nCommand: ${command}\nOutcome: ${report.outcome}\n\n${report.checks.map(c=>`- ${c.status} | ${c.scenarioId} | ${c.reason}`).join('\n')}\n\nOfficial checklist items automatically completed: 0\n`,{mode:0o600});
-    await trackFindings(report,local);
+    if(!BROWSER_COMMANDS.includes(command))await trackFindings(report,local);
     if(!CONTROLS.has(command)) await atomicJson(resolve(local,'latest.json'),{runId,outcome:report.outcome,counts:counts(report.checks),finishedAt:report.finishedAt});
     } finally {await release();}
   }

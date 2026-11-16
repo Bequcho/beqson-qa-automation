@@ -7,7 +7,8 @@ import { safeSummary } from './report.mjs';
 import { runCommand } from './runner.mjs';
 
 export class Worker {
-  constructor(github,{local=LOCAL,execute=runCommand,signal,controlPollMs=5000}={}) {this.github=github;this.local=local;this.file=resolve(local,'bridge-state.json');this.execute=execute;this.signal=signal;this.stop=false;this.controlPollMs=controlPollMs;}
+  constructor(github,{local=LOCAL,execute=runCommand,signal,controlPollMs=5000,lane='all'}={}) {this.github=github;this.local=local;this.file=resolve(local,'bridge-state.json');this.execute=execute;this.signal=signal;this.stop=false;this.controlPollMs=controlPollMs;this.lane=lane;}
+  inLane(issue){return this.lane==='all'||issue.title?.startsWith(this.lane==='browser'?'AIKIT-BROWSER: ':'AIKIT-QA: ');}
   async load() {
     this.state=await readJson(this.file,{version:2,paused:false,holdIssue:null,issues:{}});
     if(this.state.version!==2) throw Error('LEGACY_STATE_REQUIRES_MIGRATION');
@@ -25,7 +26,7 @@ export class Worker {
     const marker=`<!-- aikit-result:${id}:${entry.runId} -->`;
     if(entry.stage==='report_ready') {
       const comments=await this.github.comments(id);
-      if(!comments.some(c=>c.user?.login==='Bequcho' && c.body?.includes(marker))) await this.github.comment(id,marker+'\n[aiKit QA Bridge result]\n```json\n'+JSON.stringify(entry.summary,null,2)+'\n```\nDetailed evidence remains local. Official item statuses are unchanged.');
+      if(!comments.some(c=>c.user?.login==='Bequcho' && c.body?.includes(marker))) await this.github.comment(id,marker+'\n[aiKit QA Bridge result]\n```json\n'+JSON.stringify(entry.summary,null,entry.summary.browser?0:2)+'\n```\nDetailed evidence remains local. Official item statuses are unchanged.');
       entry.stage='reported';await this.save();
     }
     if(entry.stage==='reported') {await this.github.close(id,entry.summary.outcome==='REJECTED');entry.stage='done';await this.save();}
@@ -37,9 +38,10 @@ export class Worker {
     if(this.signal?.aborted || this.stop) return;
     const issues=await this.github.issues(),accepted=[];
     for(const issue of issues) {
+      if(!this.inLane(issue))continue;
       if(this.state.issues[issue.number]) continue;
       try {const request=parseIssue(issue);if(request) accepted.push({issue,request});}
-      catch {if(issue.user?.login==='Bequcho' && !issue.pull_request && issue.title?.startsWith('AIKIT-QA: ')) accepted.push({issue,request:null});}
+      catch {if(issue.user?.login==='Bequcho' && !issue.pull_request && (issue.title?.startsWith('AIKIT-QA: ')||issue.title?.startsWith('AIKIT-BROWSER: '))) accepted.push({issue,request:null});}
     }
     // Control requests remain usable while the test queue is paused.
     accepted.sort((a,b)=>Number(CONTROLS.has(b.request?.command))-Number(CONTROLS.has(a.request?.command)) || a.issue.number-b.issue.number);
@@ -70,6 +72,7 @@ export class Worker {
           try {
             const pending=await this.github.issues();
             for(const candidate of pending) {
+              if(!this.inLane(candidate))continue;
               if(this.state.issues[candidate.number])continue;
               let control;try{control=parseIssue(candidate);}catch{continue;}
               if(control && ['PAUSE','STOP'].includes(control.command)) {interrupt.abort();break;}
