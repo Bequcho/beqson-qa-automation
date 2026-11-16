@@ -1,42 +1,29 @@
 @echo off
 setlocal
 cd /d "%~dp0..\.."
-where node.exe >nul 2>nul
-if errorlevel 1 (
- echo Node.js is missing. Install Node.js 24 and try again.
- pause
- exit /b 1
-)
-where gh.exe >nul 2>nul
-if errorlevel 1 (
- echo GitHub CLI is missing. Run: winget install --id GitHub.cli
- echo Then reopen this window and run START-BRIDGE.cmd again.
- pause
- exit /b 1
-)
-if not exist "node_modules\@playwright\test\package.json" (
- echo Installing locally locked Playwright dependencies...
- call npm ci
- if errorlevel 1 goto failed
-)
-echo Checking Chromium...
-call npx playwright install chromium
-if errorlevel 1 goto failed
-call gh auth status >nul 2>nul
-if errorlevel 1 (
- echo Please sign in to GitHub as Bequcho:
- call gh auth login --hostname github.com --scopes repo
- if errorlevel 1 goto failed
-)
-echo.
-echo Starting aiKit QA Bridge (PRIVATE GitHub queue).
-echo Leave this window open. Ctrl+C stops the bridge.
-node aikit\bridge\watch.mjs
-echo.
-echo Bridge exited.
-pause
-exit /b 0
-:failed
-echo Setup failed. Review the error and try again.
-pause
+set "QA_START_MODE="
+if not "%~2"=="" goto usage
+if "%~1"=="" goto find_node
+if /i "%~1"=="--check" set "QA_START_MODE=--check"
+if /i "%~1"=="--once" set "QA_START_MODE=--once"
+if not defined QA_START_MODE goto usage
+:find_node
+set "QA_NODE_EXE="
+if exist "%ProgramFiles%\nodejs\node.exe" set "QA_NODE_EXE=%ProgramFiles%\nodejs\node.exe"
+if not defined QA_NODE_EXE if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "QA_NODE_EXE=%LOCALAPPDATA%\Programs\nodejs\node.exe"
+if not defined QA_NODE_EXE for /f "delims=" %%N in ('"%SystemRoot%\System32\where.exe" node.exe 2^>nul') do if not defined QA_NODE_EXE set "QA_NODE_EXE=%%N"
+if not defined QA_NODE_EXE goto missing_node
+"%QA_NODE_EXE%" "%~dp0start.mjs" %QA_START_MODE%
+set "QA_EXIT_CODE=%errorlevel%"
+if "%QA_EXIT_CODE%"=="0" echo Bridge startup or execution completed successfully.
+if not "%QA_EXIT_CODE%"=="0" echo Local data is preserved. Resolve the specific message above, then restart.
+if not defined QA_START_MODE pause
+exit /b %QA_EXIT_CODE%
+:missing_node
+echo Startup blocked: Node.js was not found on PATH or in standard installation folders.
+echo Install Node.js 24 with npm, then reopen this file. Git will be discovered automatically.
+if not defined QA_START_MODE pause
+exit /b 1
+:usage
+echo Usage: START-BRIDGE.cmd [--check ^| --once]
 exit /b 1

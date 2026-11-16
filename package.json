@@ -9,7 +9,12 @@
     "test:mobile": "playwright test --project=mobile-chrome",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report",
-    "check:types": "tsc --noEmit"
+    "check:types": "tsc --noEmit && tsc --project aikit/tsconfig.json --noEmit",
+    "aikit:test": "node --test aikit/unit/*.test.mjs",
+    "aikit:safe": "node aikit/bridge/command.mjs SAFE_CHECKS",
+    "aikit:bridge": "node aikit/bridge/watch.mjs",
+    "aikit:login": "node aikit/bridge/setup-auth.mjs",
+    "aikit:check-public": "node aikit/bridge/check-public.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

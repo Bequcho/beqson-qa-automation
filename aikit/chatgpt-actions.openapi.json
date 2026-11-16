@@ -1,0 +1,14 @@
+{
+  "openapi":"3.1.0",
+  "info":{"title":"Private aiKit QA queue","version":"2.0.0","description":"Queue allowlisted local QA tasks and read sanitized results. The local Windows bridge must be running. This API never accesses browser credentials."},
+  "servers":[{"url":"https://api.github.com"}],
+  "paths":{
+    "/repos/Bequcho/beqson-qa-platform/issues":{
+      "get":{"operationId":"listQaTasks","summary":"List private queue tasks","parameters":[{"name":"state","in":"query","schema":{"type":"string","enum":["open","closed","all"],"default":"all"}},{"name":"per_page","in":"query","schema":{"type":"integer","minimum":1,"maximum":100,"default":30}}],"responses":{"200":{"description":"Tasks with their status","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","properties":{"number":{"type":"integer"},"title":{"type":"string"},"state":{"type":"string"},"body":{"type":"string"}}}}}}}}},
+      "post":{"operationId":"queueQaTask","summary":"Queue an explicitly requested QA command","description":"Use title AIKIT-QA: COMMAND and body AIKIT_QA_BRIDGE_V2 followed by a newline and JSON {version:2,command:COMMAND,params:{}}. Commands: SAFE_CHECKS, PUBLIC_REMAINING, PUBLIC_ALL, AUTH_SMOKE, RUN_SCENARIO, TEST_TOOL, RUN_NEXT, RESUME_CHECKLIST, RETEST, PROGRESS, LATEST, BLOCKED, PAUSE, RESUME, STOP. Never send executable code, credentials, arbitrary URLs, or mutation approval in an issue.","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["title","body"],"properties":{"title":{"type":"string","pattern":"^AIKIT-QA: [A-Z_]+$"},"body":{"type":"string","maxLength":4096}}}}}},"responses":{"201":{"description":"Queued task","content":{"application/json":{"schema":{"type":"object","properties":{"number":{"type":"integer"},"html_url":{"type":"string"},"state":{"type":"string"}}}}}}}}
+    },
+    "/repos/Bequcho/beqson-qa-platform/issues/{issue_number}/comments":{
+      "get":{"operationId":"readQaResult","summary":"Read the bridge result for a queued task","parameters":[{"name":"issue_number","in":"path","required":true,"schema":{"type":"integer","minimum":1}},{"name":"per_page","in":"query","schema":{"type":"integer","minimum":1,"maximum":100,"default":100}}],"responses":{"200":{"description":"Comments containing sanitized result JSON; a claim alone is not completion","content":{"application/json":{"schema":{"type":"array","items":{"type":"object","properties":{"body":{"type":"string"},"created_at":{"type":"string"},"html_url":{"type":"string"}}}}}}}}}
+    }
+  }
+}
