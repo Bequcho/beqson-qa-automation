@@ -9,7 +9,7 @@ export function parsePlaywright(report) {
     for(const spec of suite.specs||[]) for(const test of spec.tests||[]) {
       const result=test.results?.at(-1),status=result?.status;
       const skip=test.annotations?.find(a=>a.type==='skip')?.description || '';
-      const id=spec.title.match(/(?:public\.[a-z]+|auth\.projects)/)?.[0];
+      const id=spec.title.match(/(?:public\.[a-z]+|auth\.projects|official\.[a-z-]+\.\d{2})/)?.[0];
       const locale=spec.title.match(/\[([^\]]+)\]/)?.[1];
       if (!id) continue;
       rows.push({scenarioId:id,locale,
@@ -27,6 +27,17 @@ export function parsePlaywright(report) {
   return rows;
 }
 export const counts=rows=>Object.fromEntries(STATUSES.map(s=>[s,rows.filter(r=>r.status===s).length]));
+/**
+ * Read-only probes provide evidence, never permission to complete an official
+ * end-to-end workflow. No state change to the official checklist occurs here.
+ */
+export function reviewOnlyProbe(check) {
+  if(!check) return null;
+  return check.status==='PASS'
+    ?{...check,status:'BLOCKED',reason:'FULL_WORKFLOW_REVIEW_REQUIRED'}
+    :check;
+}
+
 // Explicit projection: browser text, errors, URLs, file paths, bug content and attachments NEVER leave the PC.
 export function safeSummary(report) {
   const out={version:2,runId:report.runId,command:report.command,outcome:report.outcome,counts:counts(report.checks||[]),suspected:(report.checks||[]).filter(c=>c.suspected).length,confirmed:(report.checks||[]).filter(c=>c.confirmed).length,officialItemsAutoCompleted:0};
