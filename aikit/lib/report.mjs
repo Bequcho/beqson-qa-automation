@@ -9,7 +9,7 @@ export function parsePlaywright(report) {
     for(const spec of suite.specs||[]) for(const test of spec.tests||[]) {
       const result=test.results?.at(-1),status=result?.status;
       const skip=test.annotations?.find(a=>a.type==='skip')?.description || '';
-      const id=spec.title.match(/(?:public\.[a-z]+|auth\.projects)/)?.[0];
+      const id=spec.title.match(/(?:public\.[a-z]+|auth\.projects|official\.[a-z-]+\.\d{2})/)?.[0];
       const locale=spec.title.match(/\[([^\]]+)\]/)?.[1];
       if (!id) continue;
       rows.push({scenarioId:id,locale,
