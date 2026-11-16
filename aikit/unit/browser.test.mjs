@@ -10,6 +10,7 @@ import {safeSummary} from '../lib/report.mjs';
 import {atomicJson,readJson} from '../lib/storage.mjs';
 import {Worker} from '../lib/worker.mjs';
 import {BrowserController} from '../browser/controller.mjs';
+import {classifyBrowserError} from '../browser/diagnostics.mjs';
 
 const target={snapshotId:'s_'+'a'.repeat(24),elementId:'e_'+'b'.repeat(24)};
 test('browser protocol allows only structured actions and rejects all executable/selector inputs',()=>{
@@ -64,4 +65,43 @@ test('corrupt interactive journal fails closed without losing evidence or leavin
   const path=join(local,'interactive/operations',runId);await mkdir(path,{recursive:true});await writeFile(join(path,'journal.json'),'{broken');
   const controller=new BrowserController({local});const result=await controller.execute('BROWSER_INSPECT',{}, {runId});
   assert.equal(result.status,'BLOCKED');assert.equal(controller.busy,false);assert.equal(await readFile(join(path,'journal.json'),'utf8'),'{broken');
+});
+
+test('Playwright failures are categorized without emitting raw selectors or private URLs',()=>{
+  const privateDetails='https://aikit.ai/home/projects/private-business-id';
+  const cases=[
+    ['locator.click: Timeout 5000ms exceeded. <div> intercepts pointer events '+privateDetails,'CLICK_INTERCEPTED'],
+    ['Element is not attached to the DOM '+privateDetails,'STALE_TARGET'],
+    ['Element is outside of the viewport '+privateDetails,'TARGET_OUTSIDE_VIEWPORT'],
+    ['Execution context was destroyed, most likely because of a navigation','NAVIGATION_RACE'],
+    ['locator.click: Timeout 5000ms exceeded.','ACTION_TIMEOUT'],
+    ['Secret runtime error '+privateDetails,'BROWSER_OPERATION_FAILED']
+  ];
+  for(const [message,expected] of cases){
+    const reason=classifyBrowserError(new Error(message));
+    assert.equal(reason,expected);
+    assert.equal(reason.includes(privateDetails),false);
+    const projected=safeBrowserResult({status:'BLOCKED',reason,steps:[]});
+    assert.equal(projected.reason,expected);
+  }
+});
+
+test('numeric layout and pointer hit-test are safe, strictly bounded public observations',()=>{
+  const snapshot={
+    snapshotId:target.snapshotId,sessionId:'a'.repeat(36),url:'https://aikit.ai/tools/audio-kit',
+    viewport:'mobile',headings:['Audio Kit'],
+    layout:{viewportWidth:375,documentWidth:902,horizontalOverflowPx:527,scrollHeight:10000,scrollY:500,secret:'private_token'},
+    controls:[{...target,role:'button',label:'Open menu',hitTest:'obstructed',kind:'disclosure',enabled:true,allowedOps:['click','inspect']},
+      {elementId:'e_'+'c'.repeat(24),role:'textbox',label:'private customer',hitTest:'secrets',kind:'editable',enabled:true,allowedOps:['inspect']}]
+  };
+  const result=safeBrowserResult({status:'COMPLETED',reason:'OBSERVATION_CAPTURED',observation:snapshot,steps:[]});
+  assert.deepEqual(result.observation.layout,{viewportWidth:375,documentWidth:902,horizontalOverflowPx:527,scrollHeight:10000,scrollY:500});
+  assert.equal(result.observation.controls[0].hitTest,'obstructed');
+  assert.equal(result.observation.controls[1].hitTest,'unknown');
+  assert.equal(result.observation.controls[1].label,'[private text]');
+  assert.equal(JSON.stringify(result).includes('private_token'),false);
+  snapshot.layout.viewportWidth=Infinity;
+  assert.equal(safeBrowserResult({status:'COMPLETED',reason:'OBSERVATION_CAPTURED',observation:snapshot,steps:[]}).observation.layout.viewportWidth,0);
+  assert.equal(safeLabel('Download'),'Download');
+  assert.equal(safeLabel('Personal customer secret'),'[private text]');
 });

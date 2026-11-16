@@ -7,13 +7,18 @@ export async function describe(handle) {
   return handle.evaluate(element=>{
     const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
     const visible=rect.width>0&&rect.height>0&&rect.right>0&&rect.bottom>0&&rect.left<innerWidth&&rect.top<innerHeight&&style.display!=='none'&&style.visibility!=='hidden';
+    // Measure pointer reachability without revealing which overlay is on top.
+    // The clipped center is used so partially visible controls are measurable.
+    const left=Math.max(0,rect.left),right=Math.min(innerWidth,rect.right),top=Math.max(0,rect.top),bottom=Math.min(innerHeight,rect.bottom);
+    const hit=left<right&&top<bottom?document.elementFromPoint((left+right)/2,(top+bottom)/2):null;
+    const hitTest=!visible?'offscreen':hit&&(hit===element||element.contains(hit))?'clear':'obstructed';
     const tag=element.tagName.toLowerCase(),type=element.getAttribute('type')||'';
     const labels=element.labels?[...element.labels].map(n=>n.textContent).join(' '):'';
     const by=element.getAttribute('aria-labelledby')?.split(/\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' ');
     const label=(element.getAttribute('aria-label')||by||labels||element.getAttribute('placeholder')||element.innerText||element.getAttribute('title')||'').replace(/\s+/g,' ').trim().slice(0,500);
     let role=element.getAttribute('role')||(tag==='a'?'link':tag==='button'?'button':tag==='select'?'combobox':tag==='textarea'?'textbox':tag==='input'?(type==='search'?'searchbox':['checkbox','radio'].includes(type)?type:'textbox'):'other');
     const expanded=element.getAttribute('aria-expanded');
-    return {tag,type,label,role,visible,href:element.getAttribute('href'),form:!!element.closest('form'),inputMode:element.getAttribute('inputmode'),controls:element.getAttribute('aria-controls'),expanded:expanded===null?null:expanded==='true',enabled:!element.disabled&&element.getAttribute('aria-disabled')!=='true',sensitive:['password','file','hidden'].includes(type)||element.getAttribute('autocomplete')==='current-password',options:tag==='select'?[...element.options].slice(0,30).map((option,index)=>({index,value:option.value,label:option.textContent||'',selected:option.selected})):[]};
+    return {tag,type,label,role,visible,hitTest,href:element.getAttribute('href'),form:!!element.closest('form'),inputMode:element.getAttribute('inputmode'),controls:element.getAttribute('aria-controls'),expanded:expanded===null?null:expanded==='true',enabled:!element.disabled&&element.getAttribute('aria-disabled')!=='true',sensitive:['password','file','hidden'].includes(type)||element.getAttribute('autocomplete')==='current-password',options:tag==='select'?[...element.options].slice(0,30).map((option,index)=>({index,value:option.value,label:option.textContent||'',selected:option.selected})):[]};
   });
 }
 
@@ -41,9 +46,15 @@ export class Targets {
     const snapshotId=opaque('s');
     const extra=await page.evaluate(()=>{
       const visible=node=>{const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&getComputedStyle(node).visibility!=='hidden';};
-      return {headings:[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).slice(0,12).map(n=>n.textContent||''),validationMessages:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],[aria-invalid="true"]')].filter(visible).slice(0,10).map(n=>n.validationMessage||n.textContent||'')};
+      const root=document.documentElement,body=document.body;
+      // Browser-only numeric viewport metrics. Never serialize DOM strings or selectors.
+      const viewportWidth=Math.max(0,Math.round(innerWidth));
+      const documentWidth=Math.max(viewportWidth,root.scrollWidth||0,body?.scrollWidth||0);
+      const layout={viewportWidth,documentWidth,horizontalOverflowPx:Math.max(0,documentWidth-viewportWidth),
+        scrollHeight:Math.max(root.scrollHeight||0,body?.scrollHeight||0),scrollY:Math.max(0,Math.round(window.scrollY))};
+      return {layout,headings:[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).slice(0,12).map(n=>n.textContent||''),validationMessages:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],[aria-invalid="true"]')].filter(visible).slice(0,10).map(n=>n.validationMessage||n.textContent||'')};
     });
-    const snapshot={snapshotId,sessionId,url:page.url(),viewport,...extra,truncated:handles.length>300||records.length===60,controls:records.map(record=>({elementId:record.elementId,role:record.descriptor.role,label:record.descriptor.label,kind:classify(record.descriptor),enabled:record.descriptor.enabled,ambiguous:record.descriptor.ambiguous,...(record.descriptor.expanded!==null?{expanded:record.descriptor.expanded}:{}),allowedOps:allowedOperations(record.descriptor),options:record.options.map(({optionId,label,selected})=>({optionId,label,selected}))}))};
+    const snapshot={snapshotId,sessionId,url:page.url(),viewport,...extra,truncated:handles.length>300||records.length===60,controls:records.map(record=>({elementId:record.elementId,role:record.descriptor.role,label:record.descriptor.label,kind:classify(record.descriptor),enabled:record.descriptor.enabled,ambiguous:record.descriptor.ambiguous,hitTest:record.descriptor.hitTest,...(record.descriptor.expanded!==null?{expanded:record.descriptor.expanded}:{}),allowedOps:allowedOperations(record.descriptor),options:record.options.map(({optionId,label,selected})=>({optionId,label,selected}))}))};
     const entry={snapshotId,at:Date.now(),url:page.url(),records,snapshot};
     this.snapshots.set(snapshotId,entry);this.latest=entry;
     while(this.snapshots.size>8)this.snapshots.delete(this.snapshots.keys().next().value);

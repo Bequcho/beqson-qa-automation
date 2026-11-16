@@ -100,3 +100,30 @@ test('select, bounded keyboard input, scrolling, navigation Back and element ins
   r=await c.execute('BROWSER_ACT',{action:{op:'click',target:target(r,'Next'),assertions:[{type:'urlPath',value:'/tools/next'}]}});assert.equal(r.status,'COMPLETED');
   r=await c.execute('BROWSER_ACT',{action:{op:'back',assertions:[{type:'urlPath',value:'/tools/fixture'}]}});assert.equal(r.status,'COMPLETED');assert.equal(f.writes(),0);
 });
+
+test('mobile observation detects horizontal overflow and a covered menu toggle without leaking overlay text',async t=>{
+  const f=await fixture(t),c=f.controller;
+  let r=await c.execute('BROWSER_OPEN',{url:f.origin+'/tools/fixture',viewport:'mobile'});
+  assert.equal(r.status,'COMPLETED');
+  assert.equal(r.observation.layout.viewportWidth,375);
+  await c.page.evaluate(()=>{
+    const wide=document.createElement('div');wide.style.width='920px';wide.style.height='1px';document.body.append(wide);
+    const blocker=document.createElement('div');blocker.id='qa-occluder';
+    blocker.textContent='private customer #123';
+    blocker.style.cssText='position:fixed;left:0;top:0;width:100%;height:110px;z-index:2147483647;pointer-events:auto';
+    document.body.append(blocker);
+  });
+  r=await c.execute('BROWSER_INSPECT',{});
+  assert.equal(r.status,'COMPLETED');
+  assert.ok(r.observation.layout.horizontalOverflowPx>=500);
+  const menu=target(r,'Open menu');
+  const observed=r.observation.controls.find(x=>x.elementId===menu.elementId);
+  assert.equal(observed.hitTest,'obstructed');
+  const sanitized=JSON.stringify(safeBrowserResult(r));
+  assert.equal(sanitized.includes('private customer #123'),false);
+  assert.ok(sanitized.includes('"hitTest":"obstructed"'));
+  const blocked=await c.execute('BROWSER_ACT',{action:{op:'click',target:menu}});
+  assert.equal(blocked.status,'BLOCKED');
+  assert.equal(blocked.reason,'CLICK_INTERCEPTED');
+  assert.equal(f.writes(),0);
+});
