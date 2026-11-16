@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process';
-import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,rename,rm} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -60,11 +60,17 @@ async function summary(task,exit){
  try{
   const data=JSON.parse(await readFile(resolve(root,'aikit-qa-results/report.json'),'utf8'));
   const counts={PASS:0,FAIL:0,NOT_TESTED:0};
-  for(const lang of data.results||[])for(const check of lang.checks||[])
-   if(Object.hasOwn(counts,check.status))counts[check.status]++;
+  const findings=[];
+  for(const lang of data.results||[]){
+   for(const check of lang.checks||[]){
+    if(Object.hasOwn(counts,check.status))counts[check.status]++;
+    if(check.status==='FAIL')findings.push(lang.locale+' | '+check.name+' | '+String(check.evidence??'').slice(0,130));
+   }
+  }
   return task+' | exit='+exit+'\nLocales: '+(data.results||[]).length+
    '\nPASS checks: '+counts.PASS+'\nFAIL checks: '+counts.FAIL+
    '\nNOT TESTED: '+counts.NOT_TESTED+
+   '\nAutomated failure observations (require manual confirmation):\n'+(findings.length?findings.slice(0,20).join('\n'):'none')+
    '\nFull results are local: aikit-qa-results/report.json\nNo official Round 2 item is automatically marked PASS.';
  }catch{return task+' | exit='+exit+'\nLocal report unavailable'}
 }
@@ -86,6 +92,8 @@ async function work(state){
   if(previous)continue; // safety: never re-run a partially completed task
   state.issues[id]={task,stage:'running',started:new Date().toISOString()};
   await save(state);
+  // Never summarize stale reports left by a previous run.
+  await rm(task==='AUTH_SMOKE'?resolve(local,'auth-smoke.json'):resolve(root,'aikit-qa-results/report.json'),{force:true});
   console.log('Running '+task+' (#'+id+')');
   let result;
   try{result=await processCall(process.execPath,tasks[task],task==='PUBLIC_ALL'?1500000:900000)}
