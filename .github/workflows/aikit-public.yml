@@ -8,15 +8,6 @@ on:
       - 'aikit/**'
       - '.github/workflows/aikit-public.yml'
   workflow_dispatch:
-    inputs:
-      scope:
-        description: 'Locale coverage'
-        required: true
-        default: 'remaining'
-        type: choice
-        options:
-          - remaining
-          - all
 
 permissions:
   contents: read
@@ -25,7 +16,7 @@ jobs:
   public-qa:
     name: Locales in isolated Chromium
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       CI: 'true'
     steps:
@@ -43,18 +34,6 @@ jobs:
       - name: Install free Chromium runner dependencies
         run: npx playwright install --with-deps chromium
       - name: Run only public non-destructive aiKit checks
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.scope }}" = "all" ]; then
-            node aikit/qa.mjs --all
-          else
-            node aikit/qa.mjs
-          fi
-      - name: Preserve test report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: aikit-public-qa-${{ github.run_id }}
-          path: aikit-qa-results/
-          retention-days: 7
-          if-no-files-found: warn
+        run: node aikit/bridge/command.mjs SAFE_CHECKS
+      # Full traces/screenshots remain local to the runner and are never uploaded.
+      # Console output contains an explicit sanitized summary only.
