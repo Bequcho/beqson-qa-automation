@@ -36,7 +36,7 @@ References: [GPT Actions setup](https://developers.openai.com/api/docs/actions/g
 
 | Request | Command | Parameters |
 |---|---|---|
-| All safe public checks, 28 locales | SAFE_CHECKS | {} |
+| All safe public checks, 28 locales | SAFE_CHECKS | {}, or resumeRunId for only untested cases from a prior SAFE_CHECKS run |
 | Remaining five locales, including approved preference checks | PUBLIC_REMAINING | {} |
 | All 28 locales, including approved preference checks | PUBLIC_ALL | {} |
 | Saved session access | AUTH_SMOKE | {} |

@@ -61,7 +61,7 @@ export class Worker {
       if(!request) report={runId:entry.runId,command:'REJECTED',outcome:'REJECTED',checks:[]};
       else if(['PAUSE','RESUME','STOP'].includes(request.command)) {
         if(request.command==='RESUME' && ((this.state.holdIssue && request.params.reviewIssue!==this.state.holdIssue)||(this.state.holdRunId && request.params.reviewRunId!==this.state.holdRunId))) report={runId:entry.runId,command:'RESUME',outcome:'BLOCKED',checks:[{status:'BLOCKED'}]};
-        else {this.state.paused=request.command!=='RESUME';if(request.command==='RESUME'){this.state.holdIssue=null;this.state.holdRunId=null;}if(request.command==='STOP')this.stop=true;report={runId:entry.runId,command:request.command,outcome:'COMPLETED',checks:[]};}
+        else {this.state.paused=request.command!=='RESUME';if(request.command==='RESUME'){this.state.holdIssue=null;this.state.holdRunId=null;delete this.state.holdReason;}if(request.command==='STOP')this.stop=true;report={runId:entry.runId,command:request.command,outcome:'COMPLETED',checks:[]};}
       } else {
         const interrupt=new AbortController(),signal=this.signal?AbortSignal.any([this.signal,interrupt.signal]):interrupt.signal;
         let polling=false;

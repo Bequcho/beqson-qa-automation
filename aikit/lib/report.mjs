@@ -30,6 +30,7 @@ export const counts=rows=>Object.fromEntries(STATUSES.map(s=>[s,rows.filter(r=>r
 // Explicit projection: browser text, errors, URLs, file paths, bug content and attachments NEVER leave the PC.
 export function safeSummary(report) {
   const out={version:2,runId:report.runId,command:report.command,outcome:report.outcome,counts:counts(report.checks||[]),suspected:(report.checks||[]).filter(c=>c.suspected).length,confirmed:(report.checks||[]).filter(c=>c.confirmed).length,officialItemsAutoCompleted:0};
+  if(/^[a-f0-9-]{36}$/.test(report.resumedFrom||'')) out.resumedFrom=report.resumedFrom;
   out.checkResults=(report.checks||[]).map(check=>({
     scenarioId:/^(?:public\.[a-z]+|auth\.projects|official\.[a-z-]+\.\d{2}|runner|official)$/.test(check.scenarioId||'')?check.scenarioId:'runner',
     ...(LOCALES.includes(check.locale)?{locale:check.locale}:{}),

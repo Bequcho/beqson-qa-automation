@@ -42,7 +42,8 @@ for(const locale of locales) {
         await page.evaluate(()=>window.scrollTo(0,0));
       };
       await test.step('Check horizontal overflow at five scroll positions',measure);
-      const menu=page.getByRole('button',{name:/menu|meni|menü|menú|меню|メニュー|메뉴|菜单|菜單|選單|قائمة|מניו|مینو|मेन्यू|মেনু|เมนู|menija/i}).filter({visible:true}).first();
+      const panelToggle=page.locator('header button[aria-controls="mk-mobile-nav-panel"]').filter({visible:true});
+      const menu=await panelToggle.count()===1?panelToggle:page.getByRole('button',{name:/menu|meni|menü|menú|меню|メニュー|메뉴|菜单|菜單|選單|قائمة|מניו|مینو|मेन्यू|মেনু|เมนู|menija/i}).filter({visible:true}).first();
       test.skip(!await menu.count(),'NOT TESTED:RELIABLE_MENU_CONTROL_UNAVAILABLE');
       await menu.click();
       const link=page.locator(`a[href="${tools(locale)}"],a[href="https://aikit.ai${tools(locale)}"]`).filter({visible:true}).first();

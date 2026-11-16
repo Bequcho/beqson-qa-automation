@@ -4,8 +4,8 @@ export const COMMANDS=Object.freeze(['PUBLIC_REMAINING','PUBLIC_ALL','AUTH_SMOKE
 export const CONTROLS=new Set(['PROGRESS','LATEST','BLOCKED','PAUSE','RESUME','STOP']);
 const exactKeys=(object,allowed)=>object && typeof object==='object' && !Array.isArray(object) && Object.keys(object).every(key=>allowed.includes(key));
 export function validate(command,params={}) {
-  if (!COMMANDS.includes(command) || !exactKeys(params,['locale','scenarioId','category','bugId','reviewIssue','reviewRunId'])) throw Error('INVALID_COMMAND');
-  const allowed={ RUN_SCENARIO:['scenarioId','locale'],TEST_TOOL:['category','locale'],RETEST:['bugId','scenarioId'],RESUME:['reviewIssue','reviewRunId'] }[command] || [];
+  if (!COMMANDS.includes(command) || !exactKeys(params,['locale','scenarioId','category','bugId','reviewIssue','reviewRunId','resumeRunId'])) throw Error('INVALID_COMMAND');
+  const allowed={ SAFE_CHECKS:['resumeRunId'],RUN_SCENARIO:['scenarioId','locale'],TEST_TOOL:['category','locale'],RETEST:['bugId','scenarioId'],RESUME:['reviewIssue','reviewRunId'] }[command] || [];
   if (!exactKeys(params,allowed)) throw Error('UNSUPPORTED_PARAMETER');
   if (params.locale!==undefined && !LOCALES.includes(params.locale)) throw Error('INVALID_LOCALE');
   if (['RUN_SCENARIO','RETEST'].includes(command) && !/^(?:public\.(?:home|navigation|mobile|locale)|auth\.projects|official\.[a-z-]+\.\d{2})$/.test(params.scenarioId||'')) throw Error('INVALID_SCENARIO');
@@ -13,6 +13,7 @@ export function validate(command,params={}) {
   if (command==='RETEST' && !/^BUG-[a-f0-9]{12}$/.test(params.bugId||'')) throw Error('INVALID_BUG');
   if (params.reviewIssue!==undefined && (!Number.isSafeInteger(params.reviewIssue) || params.reviewIssue<1)) throw Error('INVALID_REVIEW');
   if (params.reviewRunId!==undefined && !/^[a-f0-9-]{36}$/.test(params.reviewRunId)) throw Error('INVALID_REVIEW');
+  if (params.resumeRunId!==undefined && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(params.resumeRunId)) throw Error('INVALID_RESUME_RUN');
   return {command,params};
 }
 export function parseIssue(issue) {

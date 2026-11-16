@@ -37,6 +37,8 @@ The bridge and test runner have separate exclusive locks. Stale-lock reclamation
 
 Polling backs off after errors. PAUSE/STOP are checked during execution about every five seconds, plus GitHub latency. Browser runs have hard time limits and bounded process logs. The bridge refuses new browser runs when local run evidence exceeds 2 GiB / 100,000 files or free space is below 1 GiB; archive locally by hand to preserve evidence. No automatic evidence deletion occurs. There is no promise that the site itself cannot allocate memory or initiate a download before the next external timeout.
 
+After approving a failed run's review, resume its untested public cases with SAFE_CHECKS and `{"resumeRunId":"PRIOR_SAFE_RUN_UUID"}`. This selects only NOT TESTED cases from that local checkpoint; it never reruns the prior passes or known failures and never enables language-preference writes.
+
 ## Evidence and security
 
 Everything sensitive lives under ignored `.aikit-local/`:

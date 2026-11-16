@@ -9,6 +9,7 @@ import { getChecklist, metrics, officialAttempt } from './checklist.mjs';
 import { parsePlaywright, counts, trackFindings } from './report.mjs';
 import { consumeLanguageApproval } from './authorization.mjs';
 import { checkBudget } from './budget.mjs';
+import { remainingSafeChecks, casePattern } from './resume.mjs';
 
 export async function runCommand(command,params={},options={}) {
   validate(command,params);
@@ -39,9 +40,15 @@ export async function runCommand(command,params={},options={}) {
       else {
         await checkBudget(local);
         const auth=command==='AUTH_SMOKE' || scenario==='auth.projects';
-        const locales=['PUBLIC_ALL','SAFE_CHECKS'].includes(command)?LOCALES:command==='PUBLIC_REMAINING'?['ht','zh-Hans','zh-Hant','ja','ko']:[retestLocale||params.locale||'en'];
+        let pending;
+        if(command==='SAFE_CHECKS' && params.resumeRunId) {
+          pending=remainingSafeChecks(await readJson(resolve(local,'runs',params.resumeRunId,'report.json')));
+          report.resumedFrom=params.resumeRunId;
+        }
+        const locales=pending?[...new Set(pending.map(c=>c.locale))]:['PUBLIC_ALL','SAFE_CHECKS'].includes(command)?LOCALES:command==='PUBLIC_REMAINING'?['ht','zh-Hans','zh-Hant','ja','ko']:[retestLocale||params.locale||'en'];
+        if(pending && !pending.length) {report.outcome='COMPLETED';return report;}
         const languageAllowed=!auth && command!=='SAFE_CHECKS' && (!scenario || scenario==='public.locale') && await consumeLanguageApproval(local,locales);
-        const child=await processCall(process.execPath,[resolve(ROOT,'node_modules/@playwright/test/cli.js'),'test','--config',resolve(ROOT,'aikit/playwright.config.ts'),auth?'auth.spec.ts':'public.spec.ts'],{
+        const child=await processCall(process.execPath,[resolve(ROOT,'node_modules/@playwright/test/cli.js'),'test','--config',resolve(ROOT,'aikit/playwright.config.ts'),auth?'auth.spec.ts':'public.spec.ts',...(pending?['--grep',casePattern(pending)]:[])],{
           cwd:ROOT,timeout:['PUBLIC_ALL','SAFE_CHECKS'].includes(command)?1_200_000:480_000,signal:options.signal,
           env:{...process.env,AIKIT_LOCAL_DIR:local,AIKIT_RUN_DIR:dir,AIKIT_SCENARIO:scenario||'',AIKIT_LOCALES:locales.join(','),AIKIT_PUBLIC_SAFE_ONLY:command==='SAFE_CHECKS'?'1':'0',AIKIT_ALLOW_LANGUAGE_PREFERENCE:languageAllowed?'1':'0'}
         });

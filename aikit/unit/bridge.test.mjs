@@ -12,6 +12,7 @@ import { CATEGORIES } from '../lib/config.mjs';
 import { processCall } from '../lib/process.mjs';
 import { consumeLanguageApproval } from '../lib/authorization.mjs';
 import { recordReview } from '../lib/review.mjs';
+import { remainingSafeChecks, casePattern } from '../lib/resume.mjs';
 
 const issue=(number=1,command='SAFE_CHECKS',params={})=>({number,title:`AIKIT-QA: ${command}`,user:{login:'Bequcho'},body:'AIKIT_QA_BRIDGE_V2\n'+JSON.stringify({version:2,command,params})});
 class FakeGitHub {
@@ -143,7 +144,19 @@ test('remote PAUSE interrupts an active browser runner and blocks subsequent tas
 });
 test('standalone confirmed-finding hold needs the exact reviewed run to resume',async t=>{
   const local=await sandbox(t),github=new FakeGitHub([issue(1,'RESUME')]),run='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  await atomicJson(resolve(local,'bridge-state.json'),{version:2,paused:true,holdRunId:run,issues:{}});
+  await atomicJson(resolve(local,'bridge-state.json'),{version:2,paused:true,holdRunId:run,holdReason:'CONFIRMED_FINDING',issues:{}});
   const w=new Worker(github,{local,execute});await w.load();await w.tick();assert.equal(w.state.paused,true);
-  github.queue.push(issue(2,'RESUME',{reviewRunId:run}));await w.tick();assert.equal(w.state.paused,false);
+  github.queue.push(issue(2,'RESUME',{reviewRunId:run}));await w.tick();assert.equal(w.state.paused,false);assert.equal(w.state.holdReason,undefined);
+});
+test('safe resume selects only untested cases and cannot replay passed or known failed checks',()=>{
+  const rows=[{scenarioId:'public.home',locale:'en',status:'PASS'},{scenarioId:'public.mobile',locale:'he',status:'FAIL'},{scenarioId:'public.mobile',locale:'sv',status:'NOT TESTED'},{scenarioId:'public.home',locale:'ar',status:'NOT TESTED'},{scenarioId:'public.home',locale:'ar',status:'NOT TESTED'}];
+  const pending=remainingSafeChecks({command:'SAFE_CHECKS',checks:rows});
+  assert.deepEqual(pending,[{scenarioId:'public.mobile',locale:'sv'},{scenarioId:'public.home',locale:'ar'}]);
+  const pattern=new RegExp(casePattern(pending));
+  assert.equal(pattern.test('aikit-chromium public.spec.ts sv public.mobile [sv]'),true);
+  assert.equal(pattern.test('public.mobile [he]'),false);
+  assert.equal(pattern.test('public.home [ar] trailing'),false);
+  assert.throws(()=>remainingSafeChecks({command:'PUBLIC_ALL',checks:rows}));
+  assert.throws(()=>remainingSafeChecks({command:'SAFE_CHECKS',checks:[{scenarioId:'arbitrary-code',locale:'en',status:'NOT TESTED'}]}));
+  assert.throws(()=>validate('SAFE_CHECKS',{resumeRunId:'../../auth-state'}));
 });
