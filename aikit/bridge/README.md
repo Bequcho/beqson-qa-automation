@@ -41,6 +41,7 @@ This is a format example, not an executed test. FAIL needs confirmed observation
 ## Recovery
 
 - Missing Node: install Node.js 24 with npm, then reopen START.
+- `spawn git ENOENT`: START now discovers existing Git/GitHub Desktop installations and invokes an absolute executable, so Git need not be on the Explorer PATH. Use `START-BRIDGE.cmd --check` to verify discovery and authentication. Optional `AIKIT_GIT_EXE` / `AIKIT_GH_EXE` overrides must name an existing absolute executable, never a command line.
 - Missing dependencies/browser: START installs from the lockfile and installed Playwright CLI.
 - GitHub auth failure: sign in locally using the existing Git helper or `gh auth login`; never send the token to chat. Prefer a fine-grained token scoped to the private queue's Issues and Metadata permissions when provisioning new credentials.
 - Expired aiKit login: stop bridge, run LOGIN, then restart. Session-storage-only authentication would require an additional local fixture; no such dependency was needed by the validated session.
@@ -49,3 +50,6 @@ This is a format example, not an executed test. FAIL needs confirmed observation
 - Network interruption: keep the bridge running; it backs off and retries publication without replaying completed browser actions.
 - Evidence quota: archive local evidence together with checkpoint/history references. The bridge never recursively deletes history for you.
 - Queue unresponsive: inspect local `heartbeat.json`, then GitHub/Windows network access. No public port, webhook or tunneling service is required.
+- Permission-helper failure: inspect local `startup-permissions.log`. Startup uses Windows PowerShell's own modules, rather than inherited PowerShell 7 modules, and does not reset the QA state on failure.
+
+`heartbeat.json` includes the worker PID and last successful cycle time. A background worker can be stopped through the private queue's STOP command; a manually opened worker also supports Ctrl+C. After reboot, manually reopen START. Automatic Windows startup requires separate user approval and is not configured by this project.

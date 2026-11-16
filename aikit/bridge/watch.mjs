@@ -24,7 +24,7 @@ try {
   do {
     try {
       await worker.load();await worker.tick();failures=0;
-      await atomicJson(resolve(LOCAL,'heartbeat.json'),{at:new Date().toISOString(),paused:worker.state.paused,holdIssue:worker.state.holdIssue});
+      await atomicJson(resolve(LOCAL,'heartbeat.json'),{at:new Date().toISOString(),pid:process.pid,paused:worker.state.paused,holdIssue:worker.state.holdIssue});
     } catch {failures++;console.error('Bridge cycle blocked. Check local authentication/network and restart if needed. No browser replay.');}
     if(process.argv.includes('--once') || worker.stop || controller.signal.aborted) {if(failures)process.exitCode=2;break;}
     await delay(Math.min(300_000,30_000*2**Math.min(failures,3)),undefined,{signal:controller.signal}).catch(()=>{});

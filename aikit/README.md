@@ -6,14 +6,18 @@ The existing BEQSON tests/configuration remain separate. This directory extends 
 
 ## Start on Windows
 
-1. Double-click `bridge/START-BRIDGE.cmd`. It checks Node, installs missing locked dependencies and Chromium, protects local evidence, validates private GitHub access, imports the official checklist, and starts polling.
+1. Double-click `bridge/START-BRIDGE.cmd`. It finds Node, installs missing locked dependencies and Chromium, protects local evidence, validates private GitHub access, imports the checklist only on first setup, and starts polling. An existing 99-item checkpoint is preserved without a source refresh.
 2. For authenticated checks, stop the bridge and double-click `bridge/LOGIN-AIKIT.cmd`. Sign in manually in the dedicated browser. The script saves local auth state automatically. It does not ask for credentials in chat.
 3. Run `node aikit/bridge/sync-program.mjs` once after login to reconcile the nine live cards. This only reads their checklists and report references; it never changes checkboxes or workflow stages.
 4. Restart `START-BRIDGE.cmd`. Keep the PC awake. Ctrl+C stops the active browser process tree and bridge; queued tasks remain in GitHub.
 
 Node itself must be installed if missing. GitHub access uses `GH_TOKEN` / `GITHUB_TOKEN`, existing GitHub CLI authentication, or Git Credential Manager, in that order. Credentials are read into memory only and never printed. If none exists, sign in locally through GitHub CLI or Git Credential Manager. GitHub CLI is optional on an already authenticated Git installation. The queue is fixed to **private** `Bequcho/beqson-qa-platform`, with actor **Bequcho**. Startup refuses a public queue or another account.
 
-The permission helper supports PowerShell 7 and Windows PowerShell 5.1. It sets an access-only ACL for the current user, SYSTEM and administrators and verifies the result. Its execution-policy flag applies only to that helper process. It does not modify machine-wide PowerShell policy.
+Git and GitHub CLI are resolved to validated absolute executables from PATH, standard application folders, per-user installations, and GitHub Desktop's current version directories. GitHub Desktop is preferred over a transient Codex runtime; discovery repeats on each start so app updates/reboots do not require a fixed version path. A custom installation can be selected locally with `AIKIT_GIT_EXE` or `AIKIT_GH_EXE`. The bridge never changes the global PATH, Git configuration, or stored credentials.
+
+`START-BRIDGE.cmd --check` validates startup without processing tasks; `--once` validates and processes one queue cycle, then exits. These modes do not pause for input. After a Windows reboot, double-click the same START file to resume polling. No automatic-start task, registry entry, or startup shortcut is installed.
+
+The permission helper supports PowerShell 7 and Windows PowerShell 5.1. Startup selects built-in Windows PowerShell and isolates its module path from inherited PowerShell 7 modules. It sets an access-only ACL for the current user, SYSTEM and administrators and verifies the result. Its execution-policy flag applies only to that helper process. It does not modify machine-wide PowerShell policy. Failed permission checks write a local `startup-permissions.log`; successful validation writes `startup.json` without secrets.
 
 ## Architecture
 
