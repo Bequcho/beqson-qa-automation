@@ -83,8 +83,9 @@ test('suspected failure pauses subsequent workflows; RESUME requires matching re
   github.queue.push(issue(4,'RESUME',{reviewIssue:1}));await w.tick();assert.equal(runs,2);
 });
 test('sanitization excludes browser text, errors, attachments, URLs and arbitrary progress',()=>{
-  const result=safeSummary({runId:'id',command:'SAFE_CHECKS',outcome:'COMPLETED',checks:[{status:'PASS',actual:'secret@example.com',evidence:['cookie=secret'],url:'https://private.invalid'}],progress:{total:99,secret:'password'}});
+  const result=safeSummary({runId:'id',command:'SAFE_CHECKS',outcome:'COMPLETED',checks:[{status:'PASS',actual:'secret@example.com',evidence:['cookie=secret'],url:'https://private.invalid',scenarioId:'public.home',locale:'en',reason:'ASSERTIONS_VERIFIED'}],progress:{total:99,secret:'password'}});
   assert.equal(JSON.stringify(result).includes('secret'),false);assert.equal(JSON.stringify(result).includes('private.invalid'),false);assert.equal(result.counts.PASS,1);
+  assert.deepEqual(result.checkResults,[{scenarioId:'public.home',locale:'en',status:'PASS',reason:'ASSERTIONS_VERIFIED'}]);
 });
 test('skipped, interrupted and failed Playwright results cannot become PASS',()=>{
   for(const [status,expected] of [['passed','PASS'],['failed','FAIL'],['interrupted','BLOCKED'],['skipped','NOT TESTED'],[undefined,'NOT TESTED']]) {

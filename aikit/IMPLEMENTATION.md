@@ -15,6 +15,7 @@ The broader 99-item QA assignment is **not complete**. Full official workflows h
 | TypeScript | `npm run check:types` passed for BEQSON and the separate aiKit suite |
 | Bridge self-tests | 19 passed: validation/injection rejection, exclusive/stale locks, restart/closure recovery, lost-response deduplication, interrupted execution, remote receipts, pause/stop monitoring, bounded output/timeout, corrupt checkpoint, expiring approval, official evidence review, standalone review hold |
 | Public source checks | Publishable-file/secret-pattern scan and ignore-rule verification passed; private auth/evidence excluded |
+| GitHub Actions self-tests | First draft-PR run `43884816119` completed successfully on Ubuntu; local Windows validation remains separate |
 | Successful queue task | Private [issue #3](https://github.com/Bequcho/beqson-qa-platform/issues/3), run `c3f25b55-6a50-4145-8e0f-7e63d1583b95`: real English homepage scenario PASS, local screenshot/trace, sanitized result retrieved, task closed |
 | Restart/no duplicate | Private tasks #1, #3, #4, #5, #6 remained closed with one original result receipt each after restart; #1 additionally has an explicit correction comment |
 | Unsupported command | Private [issue #6](https://github.com/Bequcho/beqson-qa-platform/issues/6): EXEC/code payload REJECTED without browser execution |
@@ -24,7 +25,7 @@ The broader 99-item QA assignment is **not complete**. Full official workflows h
 | Confirmed product issue | Separate mobile-emulated reproduction confirmed Hebrew horizontal overflow and blank viewport after horizontal scrolling; no matching report in the saved sections of the nine current program cards |
 | Official source reconciliation | All 9 cards / 99 positions read and aligned; 15 live checkmarks retained as observations; six descriptions still truncated; zero official dispositions changed |
 
-The broad public run is not a green suite. The confirmed defect is held for user review. Not-tested counts include skipped checks and checks never reached after the stop limit. Individual runs and their exact evidence remain under `.aikit-local/`; none is committed here. GitHub Actions execution of the new self-test workflow is a separate check from these local Windows results.
+The broad public run is not a green suite. The confirmed defect is held for user review. Not-tested counts include skipped checks and checks never reached after the stop limit. Individual runs and their exact evidence remain under `.aikit-local/`; none is committed here. The self-test CI job does not run product workflows or authenticate to aiKit.
 
 ## Confirmed product observation
 

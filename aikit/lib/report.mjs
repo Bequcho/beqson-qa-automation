@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { atomicJson, readJson } from './storage.mjs';
-import { LOCAL, STATUSES } from './config.mjs';
+import { LOCAL, STATUSES, LOCALES } from './config.mjs';
 
 export function parsePlaywright(report) {
   const rows=[];
@@ -30,10 +30,16 @@ export const counts=rows=>Object.fromEntries(STATUSES.map(s=>[s,rows.filter(r=>r
 // Explicit projection: browser text, errors, URLs, file paths, bug content and attachments NEVER leave the PC.
 export function safeSummary(report) {
   const out={version:2,runId:report.runId,command:report.command,outcome:report.outcome,counts:counts(report.checks||[]),suspected:(report.checks||[]).filter(c=>c.suspected).length,confirmed:(report.checks||[]).filter(c=>c.confirmed).length,officialItemsAutoCompleted:0};
+  out.checkResults=(report.checks||[]).map(check=>({
+    scenarioId:/^(?:public\.[a-z]+|auth\.projects|official\.[a-z-]+\.\d{2}|runner|official)$/.test(check.scenarioId||'')?check.scenarioId:'runner',
+    ...(LOCALES.includes(check.locale)?{locale:check.locale}:{}),
+    status:STATUSES.includes(check.status)?check.status:'BLOCKED',
+    reason:/^[A-Z_]+$/.test(check.reason||'')?check.reason:'REVIEW_LOCAL_EVIDENCE'
+  }));
   if(report.progress) {
     const p=report.progress;
     out.progress={};
-    for(const key of ['total','reconciled','truncated','liveChecked']) if(Number.isSafeInteger(p[key]) && p[key]>=0) out.progress[key]=p[key];
+    for(const key of ['total','reconciled','truncated','liveChecked','confirmedFindings','suspectedFindings']) if(Number.isSafeInteger(p[key]) && p[key]>=0) out.progress[key]=p[key];
     for(const key of ['current','historical','latestCounts']) if(p[key]) out.progress[key]=Object.fromEntries(STATUSES.map(s=>[s,Number.isSafeInteger(p[key][s])?p[key][s]:0]));
     if(/^[a-f0-9-]{36}$/.test(p.latestRunId||'')) out.progress.latestRunId=p.latestRunId;
     if(['COMPLETED','BLOCKED','INCOMPLETE','REVIEW_REQUIRED','NO_RUN'].includes(p.latestOutcome)) out.progress.latestOutcome=p.latestOutcome;

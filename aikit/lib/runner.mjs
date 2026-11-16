@@ -18,7 +18,10 @@ export async function runCommand(command,params={},options={}) {
   const report={version:2,runId,command,params,startedAt:new Date().toISOString(),finishedAt:null,outcome:'BLOCKED',checks:[]};
   try {
     const checklist=await getChecklist(local);
-    if(command==='PROGRESS') {report.progress=checklist?metrics(checklist):{total:0,reason:'CHECKLIST_NOT_IMPORTED'};report.outcome='COMPLETED';}
+    if(command==='PROGRESS') {
+      const known=await readJson(resolve(local,'known-issues.json'),{issues:[]});
+      report.progress={...(checklist?metrics(checklist):{total:0}),confirmedFindings:known.issues.filter(i=>i.confirmed).length,suspectedFindings:known.issues.filter(i=>!i.confirmed&&!i.disposition).length};report.outcome='COMPLETED';
+    }
     else if(command==='BLOCKED') {
       report.blocked=checklist?.scenarios.filter(s=>!['PASS','FAIL'].includes(s.executionStatus)).map(s=>({id:s.id,reason:!s.reconciled?'RECONCILIATION_REQUIRED':s.sourceTruncated?'FULL_CRITERION_REQUIRED':'MANUAL_WORKFLOW_AND_SCOPED_AUTHORIZATION_REQUIRED'}))||[];report.outcome='COMPLETED';
     } else if(command==='LATEST') {const latest=await readJson(resolve(local,'latest.json'),null);report.progress={latestRunId:latest?.runId||null,latestOutcome:latest?.outcome||'NO_RUN',latestCounts:latest?.counts};report.outcome='COMPLETED';}
