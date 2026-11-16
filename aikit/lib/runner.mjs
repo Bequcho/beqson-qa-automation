@@ -35,11 +35,11 @@ export async function runCommand(command,params={},options={}) {
         retestLocale=finding.locale;
       }
       if(['RUN_NEXT','RESUME_CHECKLIST','TEST_TOOL'].includes(command)) scenario=checklist?.scenarios.find(s=>(!params.category || s.category===params.category) && s.executionStatus==='NOT TESTED' && s.attempts.at(-1)?.status!=='BLOCKED')?.id;
-      if(scenario?.startsWith('official.')) report.checks.push(await officialAttempt(scenario,runId,local));
+      if(scenario?.startsWith('official.') && scenario!=='official.voice-kit.02') report.checks.push(await officialAttempt(scenario,runId,local));
       else if(['RUN_NEXT','RESUME_CHECKLIST','TEST_TOOL'].includes(command)) report.checks.push({scenarioId:'official',status:'BLOCKED',reason:'NO_PENDING_IMPORTED_SCENARIO'});
       else {
         await checkBudget(local);
-        const auth=command==='AUTH_SMOKE' || scenario==='auth.projects';
+        const auth=command==='AUTH_SMOKE' || scenario==='auth.projects' || scenario==='official.voice-kit.02';
         let pending;
         if(command==='SAFE_CHECKS' && params.resumeRunId) {
           pending=remainingSafeChecks(await readJson(resolve(local,'runs',params.resumeRunId,'report.json')));
@@ -48,13 +48,29 @@ export async function runCommand(command,params={},options={}) {
         const locales=pending?[...new Set(pending.map(c=>c.locale))]:['PUBLIC_ALL','SAFE_CHECKS'].includes(command)?LOCALES:command==='PUBLIC_REMAINING'?['ht','zh-Hans','zh-Hant','ja','ko']:[retestLocale||params.locale||'en'];
         if(pending && !pending.length) {report.outcome='COMPLETED';return report;}
         const languageAllowed=!auth && command!=='SAFE_CHECKS' && (!scenario || scenario==='public.locale') && await consumeLanguageApproval(local,locales);
-        const child=await processCall(process.execPath,[resolve(ROOT,'node_modules/@playwright/test/cli.js'),'test','--config',resolve(ROOT,'aikit/playwright.config.ts'),auth?'auth.spec.ts':'public.spec.ts',...(pending?['--grep',casePattern(pending)]:[])],{
+        const child=await processCall(process.execPath,[resolve(ROOT,'node_modules/@playwright/test/cli.js'),'test','--config',resolve(ROOT,'aikit/playwright.config.ts'),scenario==='official.voice-kit.02'?'official-readonly.spec.ts':auth?'auth.spec.ts':'public.spec.ts',...(pending?['--grep',casePattern(pending)]:[])],{
           cwd:ROOT,timeout:['PUBLIC_ALL','SAFE_CHECKS'].includes(command)?1_200_000:480_000,signal:options.signal,
           env:{...process.env,AIKIT_LOCAL_DIR:local,AIKIT_RUN_DIR:dir,AIKIT_SCENARIO:scenario||'',AIKIT_LOCALES:locales.join(','),AIKIT_PUBLIC_SAFE_ONLY:command==='SAFE_CHECKS'?'1':'0',AIKIT_ALLOW_LANGUAGE_PREFERENCE:languageAllowed?'1':'0'}
         });
         await writeFile(resolve(dir,'process.log'),child.stdout+'\n'+child.stderr,{mode:0o600});
         const raw=await readJson(resolve(dir,'playwright.json'),null);
         if(raw) report.checks=parsePlaywright(raw);
+        if(scenario==='official.voice-kit.02') {
+          const probe=report.checks.find(c=>c.scenarioId===scenario);
+          // A successful read-only preview is evidence, NOT completion of stock
+          // voice assignment/reading or an official PASS. Review remains required.
+          if(probe?.status==='PASS') {probe.status='BLOCKED';probe.reason='FULL_WORKFLOW_REVIEW_REQUIRED';}
+          const item=checklist?.scenarios.find(s=>s.id===scenario);
+          if(item && probe) {
+            item.attempts??=[];
+            item.attempts.push({
+              kind:'read-only-evidence-probe',runId,at:new Date().toISOString(),
+              status:probe.status,reason:probe.reason,
+              evidence:probe.evidence||[]
+            });
+            await atomicJson(resolve(local,'checklist.json'),checklist);
+          }
+        }
         if(!report.checks.length || child.code===124 || child.code===130 || (raw?.errors?.length && !report.checks.some(c=>c.status==='FAIL'))) report.checks.push({scenarioId:scenario||'runner',status:'BLOCKED',reason:child.code===124?'EXECUTION_TIMEOUT':child.code===130?'INTERRUPTED':'RUNNER_ERROR'});
         // Nonzero exit without a failed or blocked case is never a successful run.
         if(child.code!==0 && !report.checks.some(c=>['FAIL','BLOCKED'].includes(c.status))) report.checks.push({scenarioId:'runner',status:'BLOCKED',reason:'RUNNER_EXIT_NONZERO'});
