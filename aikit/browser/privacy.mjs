@@ -1,5 +1,5 @@
-const UI=new Set(`Tools|Tool library|Home|Projects|Things you build|Your websites|My projects|Stock voices|All 60 stock voices|Voice Kit|Audio Kit|Site Plan|Bring in a site|Live Chat|Languages|Website modules|Pro Designer Automate|Open menu|Close menu|Menu|Close|Back|Next|Previous|Search|Search tools|Filters|Filter|Sort|Category|View|Overview|Settings|Required|This field is required|Invalid email|Please enter a valid email address|Cancel|Show more|Show all|Hide|Expand|Collapse|Light|Dark|English|Play|Pause|Preview|Help|Library|Your time|Checklist|Your work items|How this tool works`.toLowerCase().split('|'));
-const REASONS=new Set('OBSERVATION_CAPTURED ACTION_OBSERVED ASSERTIONS_VERIFIED ASSERTION_FAILED NOT_EXECUTED STALE_TARGET AMBIGUOUS_TARGET TARGET_NOT_FOUND TARGET_DISABLED STALE_OPTION INSPECTION_REQUIRED NO_ACTED_TARGET URL_NOT_ALLOWED URL_QUERY_NOT_ALLOWED URL_ACTION_BLOCKED LOCAL_SCOPED_AUTHORIZATION_REQUIRED LOCAL_AUTHORIZATION_SCOPE_MISMATCH CAPABILITY_DISABLED FORM_SUBMISSION_BLOCKED LOCAL_LOGIN_REQUIRED INTERRUPTED EXECUTION_BUDGET_EXCEEDED BROWSER_OPERATION_FAILED BROWSER_UNAVAILABLE UNKNOWN_CHECKLIST_ITEM INTERRUPTED_NO_REPLAY LOCAL_REVIEW_REQUIRED'.split(' '));
+const UI=new Set(`Tools|Tool library|Home|Projects|Things you build|Your websites|My projects|Stock voices|All 60 stock voices|Voice Kit|Audio Kit|Site Plan|Bring in a site|Live Chat|Languages|Website modules|Pro Designer Automate|Open menu|Close menu|Menu|Close|Back|Next|Previous|Search|Search tools|Filters|Filter|Sort|Category|View|Overview|Settings|Required|This field is required|Invalid email|Please enter a valid email address|Cancel|Show more|Show all|Hide|Expand|Collapse|Light|Dark|English|Play|Pause|Preview|Help|Library|Your time|Checklist|Your work items|How this tool works|Upload|Download|Export|Import|Save|Undo|Redo|Trim|Noise reduction|Remove noise|Edit|Add file|Choose file|Choose files|Select files|Drag and drop|Open file|My audio|My files|Your script|Your voice|Read|Hear|Apply|Restore|History|Versions|Pricing|Quote|Contact form|Lead capture|Submit|Required field|File too large|Unsupported file|Video Kit|Writing Pack|Motion Maker|Music Maker|Save to Graphics Library|Retry|Start|Stop|Continue`.toLowerCase().split('|'));
+const REASONS=new Set('OBSERVATION_CAPTURED ACTION_OBSERVED ASSERTIONS_VERIFIED ASSERTION_FAILED NOT_EXECUTED STALE_TARGET AMBIGUOUS_TARGET TARGET_NOT_FOUND TARGET_DISABLED STALE_OPTION INSPECTION_REQUIRED NO_ACTED_TARGET URL_NOT_ALLOWED URL_QUERY_NOT_ALLOWED URL_ACTION_BLOCKED LOCAL_SCOPED_AUTHORIZATION_REQUIRED LOCAL_AUTHORIZATION_SCOPE_MISMATCH CAPABILITY_DISABLED FORM_SUBMISSION_BLOCKED LOCAL_LOGIN_REQUIRED INTERRUPTED EXECUTION_BUDGET_EXCEEDED BROWSER_OPERATION_FAILED CLICK_INTERCEPTED TARGET_OUTSIDE_VIEWPORT NAVIGATION_RACE ACTION_TIMEOUT BROWSER_UNAVAILABLE UNKNOWN_CHECKLIST_ITEM INTERRUPTED_NO_REPLAY LOCAL_REVIEW_REQUIRED'.split(' '));
 export const safeReason=value=>REASONS.has(value)?value:'LOCAL_REVIEW_REQUIRED';
 REASONS.add('LOCAL_STORAGE_UNAVAILABLE');
 export function safeLabel(value) {
@@ -15,6 +15,7 @@ export function safePath(url) {
     return path.startsWith('/tools/')?'/tools/:private':path.startsWith('/home/')?'/home/:private':'/:private';
   }catch{return '/:private';}
 }
+const safePixel=value=>Number.isSafeInteger(value)&&value>=0&&value<=1_000_000?value:0;
 export function safeObservation(snapshot) {
   if(!snapshot)return null;
   const validId=value=>typeof value==='string'&&/^[es]_[a-f0-9]{24}$/.test(value);
@@ -25,12 +26,20 @@ export function safeObservation(snapshot) {
     viewport:['desktop','mobile'].includes(snapshot.viewport)?snapshot.viewport:'desktop',
     headings:(snapshot.headings||[]).slice(0,12).map(safeLabel),
     validationMessages:(snapshot.validationMessages||[]).slice(0,10).map(safeLabel),
+    // Strict numeric projection: never return DOM text, selectors or elementFromPoint metadata.
+    layout:snapshot.layout&&typeof snapshot.layout==='object'?{
+      viewportWidth:safePixel(snapshot.layout.viewportWidth),
+      documentWidth:safePixel(snapshot.layout.documentWidth),
+      horizontalOverflowPx:safePixel(snapshot.layout.horizontalOverflowPx),
+      scrollHeight:safePixel(snapshot.layout.scrollHeight),
+      scrollY:safePixel(snapshot.layout.scrollY)
+    }:null,
     controls:(snapshot.controls||[]).slice(0,60).filter(control=>validId(control.elementId)).map(control=>({
       elementId:control.elementId,
       role:['button','link','textbox','searchbox','combobox','tab','checkbox','radio','slider','other'].includes(control.role)?control.role:'other',
       label:safeLabel(control.label),
       kind:['navigation','disclosure','search','filter','editable','sensitive','other'].includes(control.kind)?control.kind:'other',
-      enabled:control.enabled===true,ambiguous:control.ambiguous===true,
+      enabled:control.enabled===true,ambiguous:control.ambiguous===true,hitTest:['clear','obstructed','offscreen'].includes(control.hitTest)?control.hitTest:'unknown',
       ...(typeof control.expanded==='boolean'?{expanded:control.expanded}:{}),
       allowedOps:(control.allowedOps||[]).filter(op=>['click','fill','press','select','inspect'].includes(op)),
       options:(control.allowedOps?.includes('select')?control.options||[]:[]).slice(0,12).filter(option=>/^o_[a-f0-9]{24}$/.test(option.optionId||'')).map(option=>({optionId:option.optionId,label:safeLabel(option.label),selected:option.selected===true}))
