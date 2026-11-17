@@ -18,7 +18,9 @@ const html=`<!doctype html><html data-pk="light"><body><main style="min-height:1
 <button type="button" aria-label="Delete project" onclick="fetch('/api/delete',{method:'POST'})">Delete</button>
 <button type="button" aria-controls="panel" aria-label="Expand" onclick="fetch('/api/generate')">Expand</button>
 <form><textarea aria-label="Description"></textarea><button>Save</button></form>
-<a href="/tools/next">Next</a></main></body></html>`;
+<a href="/tools/next">Next</a>
+<a href="/tools/next" onclick="event.preventDefault();setTimeout(()=>{location.href='/tools/next'},450)">Deferred Next</a>
+</main></body></html>`;
 
 async function fixture(t) {
   const local=await mkdtemp(join(tmpdir(),'aikit-browser-integration-'));let writes=0,generations=0;
@@ -125,5 +127,35 @@ test('mobile observation detects horizontal overflow and a covered menu toggle w
   const blocked=await c.execute('BROWSER_ACT',{action:{op:'click',target:menu}});
   assert.equal(blocked.status,'BLOCKED');
   assert.equal(blocked.reason,'CLICK_INTERCEPTED');
+  assert.equal(f.writes(),0);
+});
+
+test('delayed client navigation is verified before step evidence is captured',async t=>{
+  const f=await fixture(t),c=f.controller;
+  let r=await c.execute('BROWSER_OPEN',{url:f.origin+'/tools/fixture'});
+  assert.equal(r.status,'COMPLETED');
+  r=await c.execute('BROWSER_ACT',{action:{
+    op:'click',target:target(r,'Deferred Next'),
+    assertions:[{type:'urlPath',value:'/tools/next'}]
+  }});
+  assert.equal(r.status,'COMPLETED');
+  assert.equal(r.steps[0].assertions[0].passed,true);
+  assert.equal(new URL(r.steps[0].observation.url).pathname,'/tools/next');
+  assert.equal(safeBrowserResult(r).steps[0].observation.route,'/tools/next');
+  assert.equal(f.writes(),0);
+});
+
+test('failed route assertion retains a post-action snapshot and never becomes PASS',async t=>{
+  const f=await fixture(t),c=f.controller;
+  let r=await c.execute('BROWSER_OPEN',{url:f.origin+'/tools/fixture'});
+  assert.equal(r.status,'COMPLETED');
+  r=await c.execute('BROWSER_ACT',{action:{
+    op:'click',target:target(r,'Next'),
+    assertions:[{type:'urlPath',value:'/tools/wrong'}]
+  }});
+  assert.equal(r.status,'REVIEW_REQUIRED');
+  assert.equal(r.steps[0].status,'FAIL');
+  assert.equal(r.steps[0].assertions[0].passed,false);
+  assert.equal(new URL(r.steps[0].observation.url).pathname,'/tools/next');
   assert.equal(f.writes(),0);
 });
