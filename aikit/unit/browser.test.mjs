@@ -105,3 +105,38 @@ test('numeric layout and pointer hit-test are safe, strictly bounded public obse
   assert.equal(safeLabel('Download'),'Download');
   assert.equal(safeLabel('Personal customer secret'),'[private text]');
 });
+
+test('only Ike-documented Site Plan and tool walkthrough URLs are navigable read-only',()=>{
+  const valid=[
+    'https://aikit.ai/catalog/site-plan?walkthrough=1',
+    'https://aikit.ai/home/projects?walkthrough=1',
+    'https://aikit.ai/tools/connect?walkthrough=1',
+    'https://aikit.ai/tools/voice-kit?walkthrough=1',
+    'https://aikit.ai/tools/audio-kit?walkthrough=1',
+    'https://aikit.ai/tools/live-chat?walkthrough=1',
+    'https://aikit.ai/tools/pro-designer-automate?walkthrough=1'
+  ];
+  const request=url=>({url:()=>url,method:()=>'GET',isNavigationRequest:()=>true,resourceType:()=>'document'});
+  for(const url of valid){
+    assert.equal(allowedUrl(url),url);
+    assert.equal(requestAllowed(request(url),'https://aikit.ai'),true);
+  }
+  for(const url of [
+    'https://aikit.ai/catalog/other?walkthrough=1',
+    'https://aikit.ai/catalog/site-plan?walkthrough=0',
+    'https://aikit.ai/catalog/site-plan?walkthrough=1&walkthrough=1',
+    'https://aikit.ai/catalog/site-plan?walkthrough=1&token=secret',
+    'https://aikit.ai/home/settings?walkthrough=1',
+    'https://aikit.ai/home/projects?walkthrough=yes',
+    'https://aikit.ai/api/generate?walkthrough=1',
+    'https://evil.invalid/catalog/site-plan?walkthrough=1'
+  ]){
+    assert.throws(()=>allowedUrl(url),/URL_(?:NOT_ALLOWED|QUERY_NOT_ALLOWED|ACTION_BLOCKED)/);
+    assert.equal(requestAllowed(request(url),'https://aikit.ai'),false);
+  }
+  const observed=safeBrowserResult({status:'COMPLETED',reason:'OBSERVATION_CAPTURED',
+    observation:{snapshotId:target.snapshotId,sessionId:'a'.repeat(36),
+      url:'https://aikit.ai/catalog/site-plan?walkthrough=1',viewport:'desktop',controls:[]},steps:[]});
+  assert.equal(observed.observation.route,'/catalog/site-plan');
+  assert.equal(JSON.stringify(observed).includes('walkthrough=1'),false);
+});
