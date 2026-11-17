@@ -138,9 +138,19 @@ export class BrowserController {
             await this.page.goto(allowedUrl(this.origin+'/',this.origin),{waitUntil:'domcontentloaded'});
           }else if(step.target)acted=await this.action(step,params.authorizationId);
           else if(step.op!=='inspect')await this.action(step,params.authorizationId);
-          const observation=await this.capture(directory,index);row.observation=observation;result.observation=observation;
+          // Verify asynchronous transitions BEFORE recording the step's evidence.
+          // Capturing first could attach the old page to a later-passing urlPath
+          // assertion, misleading QA reviewers about the observed result.
           for(const assertion of step.assertions||[])row.assertions.push(await this.assertOne(assertion,acted));
+          const observation=await this.capture(directory,index);row.observation=observation;result.observation=observation;
           if(row.assertions.some(a=>!a.passed)){row.status='FAIL';row.reason='ASSERTION_FAILED';result.status='REVIEW_REQUIRED';result.reason='ASSERTION_FAILED';break;}
+          // A navigation after successful assertion but before capture is a
+          // race, not a verified PASS. Keep its evidence for diagnosis.
+          const expectedRoutes=(step.assertions||[]).filter(a=>a.type==='urlPath').map(a=>a.value);
+          if(expectedRoutes.some(route=>new URL(observation.url).pathname!==route)) {
+            row.status='BLOCKED';row.reason='NAVIGATION_RACE';
+            result.status='BLOCKED';result.reason='NAVIGATION_RACE';break;
+          }
           row.status='PASS';row.reason=row.assertions.length?'ASSERTIONS_VERIFIED':'ACTION_OBSERVED';
         }catch(error) {
           row.status='BLOCKED';row.reason=this.authBlocked?'LOCAL_LOGIN_REQUIRED':signal.aborted?(timeout.aborted?'EXECUTION_BUDGET_EXCEEDED':'INTERRUPTED'):/^[A-Z_]+$/.test(error.message)?error.message:classifyBrowserError(error);
