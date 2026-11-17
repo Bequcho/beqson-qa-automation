@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "title": "OAK & BEAN Coffee Studio — QA price feed (fictional test items only)",
+  "currency": "GEL",
+  "test_only": true,
+  "description": "Synthetic QA fixtures for checking aiKit Live Chat quantity pricing. These are not real menu products or customer offers.",
+  "products": [
+    {
+      "id": "qa-beans",
+      "name": "QA TEST — Coffee Bean Bags",
+      "description": "Fictional test merchandise. Not for sale.",
+      "variants": [
+        {
+          "sku": "QA-BEANS-250",
+          "name": "250 g bag",
+          "options": {
+            "size": "250 g"
+          },
+          "price": 20
+        },
+        {
+          "sku": "QA-BEANS-1000",
+          "name": "1 kg bag",
+          "options": {
+            "size": "1 kg"
+          },
+          "price": 70
+        }
+      ],
+      "quantity_discounts": [
+        {
+          "min_quantity": 5,
+          "discount_percent": 10
+        },
+        {
+          "min_quantity": 10,
+          "discount_percent": 20
+        }
+      ]
+    },
+    {
+      "id": "qa-cup-pack",
+      "name": "QA TEST — Reusable Cup Pack",
+      "description": "Fictional test merchandise. Not for sale.",
+      "variants": [
+        {
+          "sku": "QA-CUP-STD",
+          "name": "Standard pack",
+          "options": {
+            "type": "Standard"
+          },
+          "price": 30
+        }
+      ],
+      "quantity_discounts": [
+        {
+          "min_quantity": 3,
+          "discount_percent": 5
+        },
+        {
+          "min_quantity": 6,
+          "discount_percent": 15
+        }
+      ]
+    }
+  ]
+}
