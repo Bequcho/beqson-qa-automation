@@ -25,6 +25,10 @@ Create issues through the connected GitHub issue-write tool. Read comments for t
 
 ## Commands
 
+Bug-report discovery and retesting use the same worker and queue. See
+[RETESTS.md](RETESTS.md) for DISCOVER_RETESTS, RETEST_REPORT, RETEST_ALL_LIVE,
+RETEST_RESUME and RETEST_STATUS, the supported objectives and exact blockers.
+
 Phase 2 adds the reviewed `dismiss` action and structural field/form observations.
 See [PHASE2.md](PHASE2.md) for its exact protocol, mock-only file/lifecycle
 adapters, signed-grant policy and disabled production capabilities.
