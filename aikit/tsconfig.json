@@ -1,5 +1,5 @@
 {
   "extends":"../tsconfig.json",
   "compilerOptions":{"esModuleInterop":true,"resolveJsonModule":true},
-  "include":["playwright.config.ts","tests/**/*.ts","browser/**/*.ts","sandbox/**/*.ts"]
+  "include":["playwright.config.ts","tests/**/*.ts","browser/**/*.ts","sandbox/**/*.ts","retests/**/*.ts"]
 }

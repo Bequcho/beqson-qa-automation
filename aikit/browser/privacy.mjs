@@ -1,3 +1,4 @@
+import {PUBLIC_RETEST_ROUTES} from '../retests/safety.mjs';
 const UI=new Set(`Tools|Tool library|Home|Projects|Things you build|Your websites|My projects|Stock voices|All 60 stock voices|Voice Kit|Audio Kit|Site Plan|Bring in a site|Live Chat|Languages|Website modules|Pro Designer Automate|Open menu|Close menu|Menu|Close|Back|Next|Previous|Search|Search tools|Filters|Filter|Sort|Category|View|Overview|Settings|Required|This field is required|Invalid email|Please enter a valid email address|Cancel|Show more|Show all|Hide|Expand|Collapse|Light|Dark|English|Play|Pause|Preview|Help|Library|Your time|Checklist|Your work items|How this tool works|Upload|Download|Export|Import|Save|Undo|Redo|Trim|Noise reduction|Remove noise|Edit|Add file|Choose file|Choose files|Select files|Drag and drop|Open file|My audio|My files|Your script|Your voice|Read|Hear|Apply|Restore|History|Versions|Pricing|Quote|Contact form|Lead capture|Submit|Required field|File too large|Unsupported file|Video Kit|Writing Pack|Motion Maker|Music Maker|Save to Graphics Library|Retry|Start|Stop|Continue`.toLowerCase().split('|'));
 const REASONS=new Set('OBSERVATION_CAPTURED ACTION_OBSERVED ASSERTIONS_VERIFIED ASSERTION_FAILED NOT_EXECUTED STALE_TARGET AMBIGUOUS_TARGET TARGET_NOT_FOUND TARGET_DISABLED STALE_OPTION INSPECTION_REQUIRED NO_ACTED_TARGET URL_NOT_ALLOWED URL_QUERY_NOT_ALLOWED URL_ACTION_BLOCKED LOCAL_SCOPED_AUTHORIZATION_REQUIRED LOCAL_AUTHORIZATION_SCOPE_MISMATCH CAPABILITY_DISABLED FORM_SUBMISSION_BLOCKED LOCAL_LOGIN_REQUIRED INTERRUPTED EXECUTION_BUDGET_EXCEEDED BROWSER_OPERATION_FAILED CLICK_INTERCEPTED TARGET_OUTSIDE_VIEWPORT NAVIGATION_RACE ACTION_TIMEOUT BROWSER_UNAVAILABLE UNKNOWN_CHECKLIST_ITEM INTERRUPTED_NO_REPLAY LOCAL_REVIEW_REQUIRED'.split(' '));
 export const safeReason=value=>REASONS.has(value)?value:'LOCAL_REVIEW_REQUIRED';
@@ -11,7 +12,7 @@ export function safeLabel(value) {
 export function safePath(url) {
   try {
     const path=new URL(url).pathname;
-    if(/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(path)||path==='/home/projects'||path==='/home/connect'||path==='/catalog/site-plan'||path==='/tools/connect'||path==='/tools')return path;
+    if(/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(path)||PUBLIC_RETEST_ROUTES.has(path)||path==='/home/projects'||path==='/home/connect'||path==='/catalog/site-plan'||path==='/tools/connect'||path==='/tools')return path;
     if(/^\/tools\/[a-z-]{1,40}$/.test(path)&&UI.has(path.slice(7).replaceAll('-',' ')))return path;
     return path.startsWith('/tools/')?'/tools/:private':path.startsWith('/home/')?'/home/:private':'/:private';
   }catch{return '/:private';}

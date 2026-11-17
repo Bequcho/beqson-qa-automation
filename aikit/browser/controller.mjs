@@ -8,6 +8,7 @@ import {allowedUrl,requestAllowed,authorizeAction} from './policy.mjs';
 import {validateBrowserCommand} from './protocol.mjs';
 import {classifyBrowserError} from './diagnostics.mjs';
 import {verifyDismissed} from './backdrops.mjs';
+import {reportUiRequestAllowed} from '../retests/safety.mjs';
 
 export class BrowserController {
   constructor({local,origin='https://aikit.ai',authSource,headless=true}={}) {
@@ -30,7 +31,7 @@ export class BrowserController {
       await this.context.route('**/*',async route=>{
         const url=new URL(route.request().url());
         if(route.request().isNavigationRequest()&&url.origin===this.origin&&/^\/(?:login|auth)(?:\/|$)/.test(url.pathname))this.authBlocked=true;
-        if(!requestAllowed(route.request(),this.origin,readPaths)){this.blockedRequests++;return route.abort('blockedbyclient');}
+        if(!reportUiRequestAllowed(route.request(),this.origin,this.reportUiIds||new Set(),this.reportUiEnabled)&&!requestAllowed(route.request(),this.origin,readPaths)){this.blockedRequests++;return route.abort('blockedbyclient');}
         return route.continue();
       });
       await this.context.routeWebSocket('**/*',socket=>socket.close());

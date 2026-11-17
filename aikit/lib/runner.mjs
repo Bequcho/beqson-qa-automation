@@ -13,6 +13,8 @@ import { remainingSafeChecks, casePattern } from './resume.mjs';
 import { BROWSER_COMMANDS } from '../browser/protocol.mjs';
 import { interactiveController } from '../browser/service.mjs';
 import { safeReason } from '../browser/privacy.mjs';
+import { RETEST_COMMANDS } from '../retests/protocol.mjs';
+import { runRetestCommand } from '../retests/engine.mjs';
 
 export async function runCommand(command,params={},options={}) {
   validate(command,params);
@@ -22,7 +24,12 @@ export async function runCommand(command,params={},options={}) {
   const report={version:2,runId,command,params,startedAt:new Date().toISOString(),finishedAt:null,outcome:'BLOCKED',checks:[]};
   try {
     const checklist=await getChecklist(local);
-    if(BROWSER_COMMANDS.includes(command)) {
+    if(RETEST_COMMANDS.includes(command)) {
+      const state=await readJson(resolve(local,'bridge-state.json'),{});
+      const result=await runRetestCommand(command,params,{local,controller:interactiveController(local),runId,signal:options.signal,queueIssue:options.issueNumber,review:state.lastReview});
+      report.retests=result.retests;report.outcome=result.outcome;
+    }
+    else if(BROWSER_COMMANDS.includes(command)) {
       await checkBudget(local);
       report.browser=await interactiveController(local).execute(command,params,{runId,signal:options.signal});
       report.outcome=report.browser.status;
@@ -77,7 +84,7 @@ export async function runCommand(command,params={},options={}) {
     report.finishedAt=new Date().toISOString();
     await atomicJson(resolve(dir,'report.json'),report);
     await writeFile(resolve(dir,'report.md'),`# aiKit QA run ${runId}\n\nCommand: ${command}\nOutcome: ${report.outcome}\n\n${report.checks.map(c=>`- ${c.status} | ${c.scenarioId} | ${c.reason}`).join('\n')}\n\nOfficial checklist items automatically completed: 0\n`,{mode:0o600});
-    if(!BROWSER_COMMANDS.includes(command))await trackFindings(report,local);
+    if(!BROWSER_COMMANDS.includes(command)&&!RETEST_COMMANDS.includes(command))await trackFindings(report,local);
     if(!CONTROLS.has(command)) await atomicJson(resolve(local,'latest.json'),{runId,outcome:report.outcome,counts:counts(report.checks),finishedAt:report.finishedAt});
     } finally {await release();}
   }

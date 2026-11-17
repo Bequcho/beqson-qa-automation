@@ -1,7 +1,7 @@
 name: aiKit bridge self-tests
 on:
   pull_request:
-    branches: [main, feature/aikit-round2-free-qa, codex/aikit-qa-bridge, codex/aikit-interactive-controller, feature/aikit-readonly-diagnostics-v2, feature/aikit-post-assertion-snapshots, codex/aikit-phase2-sandbox]
+    branches: [main, feature/aikit-round2-free-qa, codex/aikit-qa-bridge, codex/aikit-interactive-controller, feature/aikit-readonly-diagnostics-v2, feature/aikit-post-assertion-snapshots, codex/aikit-phase2-sandbox, feature/aikit-official-walkthrough-routes]
     paths: ['aikit/**', 'package.json', 'package-lock.json', '.github/workflows/aikit-bridge-checks.yml']
   workflow_dispatch:
 permissions:

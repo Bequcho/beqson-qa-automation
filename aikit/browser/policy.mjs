@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {readJson,atomicJson} from '../lib/storage.mjs';
+import {PROGRAM,PUBLIC_RETEST_ROUTES} from '../retests/safety.mjs';
 
 export function allowedUrl(input,origin='https://aikit.ai') {
   let url;try{url=new URL(input);}catch{throw Error('URL_NOT_ALLOWED');}
@@ -8,11 +9,12 @@ export function allowedUrl(input,origin='https://aikit.ai') {
   if(!['https:','http:'].includes(url.protocol)||(!origin.startsWith('http://127.0.0.1:')&&url.protocol!=='https:'))throw Error('URL_NOT_ALLOWED');
   // The official aiKit QA brief explicitly names /catalog/site-plan.
   // Do not expand this into a general /catalog/** allowlist.
-  if(!/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(url.pathname)&&!/^\/(?:tools|home)(?:\/[a-z0-9-]+)*\/?$/i.test(url.pathname)&&url.pathname!=='/catalog/site-plan')throw Error('URL_NOT_ALLOWED');
+  if(!/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(url.pathname)&&!/^\/(?:tools|home)(?:\/[a-z0-9-]+)*\/?$/i.test(url.pathname)&&url.pathname!=='/catalog/site-plan'&&!PUBLIC_RETEST_ROUTES.has(url.pathname))throw Error('URL_NOT_ALLOWED');
   const documentedWalkthroughs=new Set(['/home/projects','/catalog/site-plan','/tools/connect','/tools/voice-kit','/tools/audio-kit','/tools/live-chat','/tools/pro-designer-automate']);
   if(url.searchParams.getAll('walkthrough').length>1)throw Error('URL_QUERY_NOT_ALLOWED');
   for(const [key,value] of url.searchParams)if(!(
-    (key==='tab'&&['space','overview','tools','projects'].includes(value))||
+    (key==='tab'&&(['space','overview','tools','projects'].includes(value)||value==='reported'&&url.pathname===PROGRAM))||
+    (key==='page'&&url.pathname===PROGRAM&&/^[1-9]\d{0,2}$/.test(value))||
     (key==='item'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value))||
     (key==='walkthrough'&&value==='1'&&documentedWalkthroughs.has(url.pathname))
   ))throw Error('URL_QUERY_NOT_ALLOWED');

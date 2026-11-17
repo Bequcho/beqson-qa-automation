@@ -1,0 +1,19 @@
+import {writeFile,readFile} from 'node:fs/promises';import {resolve} from 'node:path';import {createHash} from 'node:crypto';import bundle from '../../node_modules/playwright-core/lib/utilsBundle.js';
+export const DOCUMENT_BLOCKS=[{style:'heading',text:'QA Unicode import'},{style:'paragraph',text:'First independent paragraph.'},{style:'blank',text:''},{style:'paragraph',text:'Second paragraph keeps its boundary.'},{style:'list',text:'List item one'},{style:'list',text:'List item two'},{style:'paragraph',text:'Unicode: Καλημέρα — ਪੰਜਾਬੀ — español.'}];
+export const DOCUMENT_TEXT=DOCUMENT_BLOCKS.map(b=>b.text).join('\n\n');
+const xml=s=>s.replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+export async function importFixtures(page,directory){
+ const docx=await new Promise((ok,fail)=>{const zip=new bundle.yazl.ZipFile(),chunks=[];zip.outputStream.on('data',b=>chunks.push(b));zip.outputStream.on('end',()=>ok(Buffer.concat(chunks)));zip.outputStream.on('error',fail);
+ const parts={
+  '[Content_Types].xml':'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>',
+  '_rels/.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+  'word/_rels/document.xml.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>',
+  'word/styles.xml':'<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style></w:styles>',
+  'word/numbering.xml':'<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>',
+  'word/document.xml':'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+DOCUMENT_BLOCKS.map(b=>'<w:p>'+(b.style==='heading'?'<w:pPr><w:pStyle w:val="Heading1"/></w:pPr>':b.style==='list'?'<w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>':'')+'<w:r><w:t xml:space="preserve">'+xml(b.text)+'</w:t></w:r></w:p>').join('')+'</w:body></w:document>'};
+ for(const [name,text]of Object.entries(parts))zip.addBuffer(Buffer.from(text),name);zip.end();});
+ await writeFile(resolve(directory,'QA-import.docx'),docx,{mode:0o600});
+ await page.setContent('<html><body>'+DOCUMENT_BLOCKS.map(b=>b.style==='heading'?'<h1>'+xml(b.text)+'</h1>':'<p>'+xml(b.text||'\u00a0')+'</p>').join('')+'</body></html>');
+ const pdf=await page.pdf({path:resolve(directory,'QA-import.pdf')});
+ return [{name:'QA-import.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:docx},{name:'QA-import.pdf',mimeType:'application/pdf',buffer:pdf}].map(f=>({...f,sha256:createHash('sha256').update(f.buffer).digest('hex')}));
+}

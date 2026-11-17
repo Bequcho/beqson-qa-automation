@@ -26,7 +26,7 @@ export class Worker {
     const marker=`<!-- aikit-result:${id}:${entry.runId} -->`;
     if(entry.stage==='report_ready') {
       const comments=await this.github.comments(id);
-      if(!comments.some(c=>c.user?.login==='Bequcho' && c.body?.includes(marker))) await this.github.comment(id,marker+'\n[aiKit QA Bridge result]\n```json\n'+JSON.stringify(entry.summary,null,entry.summary.browser?0:2)+'\n```\nDetailed evidence remains local. Official item statuses are unchanged.');
+      if(!comments.some(c=>c.user?.login==='Bequcho' && c.body?.includes(marker))) await this.github.comment(id,marker+'\n[aiKit QA Bridge result]\n```json\n'+JSON.stringify(entry.summary,null,entry.summary.browser||entry.summary.retests?0:2)+'\n```\nDetailed evidence remains local. Official item statuses are unchanged.');
       entry.stage='reported';await this.save();
     }
     if(entry.stage==='reported') {await this.github.close(id,entry.summary.outcome==='REJECTED');entry.stage='done';await this.save();}
@@ -63,7 +63,7 @@ export class Worker {
       if(!request) report={runId:entry.runId,command:'REJECTED',outcome:'REJECTED',checks:[]};
       else if(['PAUSE','RESUME','STOP'].includes(request.command)) {
         if(request.command==='RESUME' && ((this.state.holdIssue && request.params.reviewIssue!==this.state.holdIssue)||(this.state.holdRunId && request.params.reviewRunId!==this.state.holdRunId))) report={runId:entry.runId,command:'RESUME',outcome:'BLOCKED',checks:[{status:'BLOCKED'}]};
-        else {this.state.paused=request.command!=='RESUME';if(request.command==='RESUME'){this.state.holdIssue=null;this.state.holdRunId=null;delete this.state.holdReason;}if(request.command==='STOP')this.stop=true;report={runId:entry.runId,command:request.command,outcome:'COMPLETED',checks:[]};}
+        else {this.state.paused=request.command!=='RESUME';if(request.command==='RESUME'){this.state.lastReview={issue:this.state.holdIssue,runId:this.state.holdRunId,at:new Date().toISOString()};this.state.holdIssue=null;this.state.holdRunId=null;delete this.state.holdReason;}if(request.command==='STOP')this.stop=true;report={runId:entry.runId,command:request.command,outcome:'COMPLETED',checks:[]};}
       } else {
         const interrupt=new AbortController(),signal=this.signal?AbortSignal.any([this.signal,interrupt.signal]):interrupt.signal;
         let polling=false;
@@ -79,12 +79,12 @@ export class Worker {
             }
           }catch{}finally{polling=false;}
         },this.controlPollMs);
-        try {report=await this.execute(request.command,request.params,{local:this.local,runId:entry.runId,signal});}
+        try {report=await this.execute(request.command,request.params,{local:this.local,runId:entry.runId,signal,issueNumber:id});}
         finally {clearInterval(monitor);}
         if(interrupt.signal.aborted) this.state.paused=true;
       }
       entry.summary=safeSummary(report);entry.stage='report_ready';entry.finishedAt=new Date().toISOString();
-      if(report.outcome==='REVIEW_REQUIRED' || this.signal?.aborted) {this.state.paused=true;this.state.holdIssue=id;}
+      if(report.outcome==='REVIEW_REQUIRED' || this.signal?.aborted) {this.state.paused=true;this.state.holdIssue=id;if(report.retests?.stage==='paused')this.state.holdRunId=entry.runId;}
       await this.save();await this.publish(id,entry);
     }
   }
