@@ -6,8 +6,16 @@ export function allowedUrl(input,origin='https://aikit.ai') {
   let url;try{url=new URL(input);}catch{throw Error('URL_NOT_ALLOWED');}
   if(url.origin!==origin||url.username||url.password||url.hash||url.pathname.includes('%')||/[\\\u0000-\u0020]/.test(url.pathname))throw Error('URL_NOT_ALLOWED');
   if(!['https:','http:'].includes(url.protocol)||(!origin.startsWith('http://127.0.0.1:')&&url.protocol!=='https:'))throw Error('URL_NOT_ALLOWED');
-  if(!/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(url.pathname)&&!/^\/(?:tools|home)(?:\/[a-z0-9-]+)*\/?$/i.test(url.pathname))throw Error('URL_NOT_ALLOWED');
-  for(const [key,value] of url.searchParams)if(!((key==='tab'&&['space','overview','tools','projects'].includes(value))||(key==='item'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value))))throw Error('URL_QUERY_NOT_ALLOWED');
+  // The official aiKit QA brief explicitly names /catalog/site-plan.
+  // Do not expand this into a general /catalog/** allowlist.
+  if(!/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(url.pathname)&&!/^\/(?:tools|home)(?:\/[a-z0-9-]+)*\/?$/i.test(url.pathname)&&url.pathname!=='/catalog/site-plan')throw Error('URL_NOT_ALLOWED');
+  const documentedWalkthroughs=new Set(['/home/projects','/catalog/site-plan','/tools/connect','/tools/voice-kit','/tools/audio-kit','/tools/live-chat','/tools/pro-designer-automate']);
+  if(url.searchParams.getAll('walkthrough').length>1)throw Error('URL_QUERY_NOT_ALLOWED');
+  for(const [key,value] of url.searchParams)if(!(
+    (key==='tab'&&['space','overview','tools','projects'].includes(value))||
+    (key==='item'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value))||
+    (key==='walkthrough'&&value==='1'&&documentedWalkthroughs.has(url.pathname))
+  ))throw Error('URL_QUERY_NOT_ALLOWED');
   if(/(?:^|\/)(?:api|logout|signout|delete|publish|checkout|billing|purchase|payment|generate|synthesize|send|invite)(?:\/|$)/i.test(url.pathname))throw Error('URL_ACTION_BLOCKED');
   return url.href;
 }

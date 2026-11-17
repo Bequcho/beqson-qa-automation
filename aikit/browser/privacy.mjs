@@ -11,7 +11,7 @@ export function safeLabel(value) {
 export function safePath(url) {
   try {
     const path=new URL(url).pathname;
-    if(/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(path)||path==='/home/projects'||path==='/tools')return path;
+    if(/^\/(?:[a-z]{2}(?:-[a-z]+)?)?$/i.test(path)||path==='/home/projects'||path==='/home/connect'||path==='/catalog/site-plan'||path==='/tools/connect'||path==='/tools')return path;
     if(/^\/tools\/[a-z-]{1,40}$/.test(path)&&UI.has(path.slice(7).replaceAll('-',' ')))return path;
     return path.startsWith('/tools/')?'/tools/:private':path.startsWith('/home/')?'/home/:private':'/:private';
   }catch{return '/:private';}

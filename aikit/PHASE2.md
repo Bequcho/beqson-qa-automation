@@ -153,3 +153,17 @@ Remaining issue #6 work includes production adapters and signing UX, additional
 media formats, full visual/media validation, criterion mapping and reconciliation
 of truncated requirements, and separate phone/consent/third-party verification.
 The 99 official statuses and 84 historical language checks remain untouched.
+
+## Exact documented walkthrough entry routes (read-only extension)
+
+The current aiKit Round 2 Hub brief explicitly points testers to these walkthrough entrypoints:
+- `/home/projects?walkthrough=1` — Your websites (authenticated)
+- `/catalog/site-plan?walkthrough=1` — Site Plan
+- `/tools/connect?walkthrough=1` — Bring in a site
+- `/tools/voice-kit?walkthrough=1` — Voice Kit
+- `/tools/audio-kit?walkthrough=1` — Audio Kit
+- `/tools/live-chat?walkthrough=1` and `/tools/pro-designer-automate?walkthrough=1` — lighter-pass tools
+
+This **does not** mean the legacy `/tools/site-plan` marketing route is the interactive planning workflow. Walkthrough mode must be verified through the actual resulting DOM, not assumed from HTTP 200 or path alone. Opening a walkthrough does not complete an official criterion.
+
+The browser policy authorizes the `/catalog/site-plan` path **only**, not arbitrary `/catalog/**`, and only accepts `walkthrough=1` at the reviewed routes above. Read-only network constraints, no-spend/no-write policy, local evidence and redacted route reporting remain unchanged. The browser may still return a limited UI if an unknown application API read is blocked. That outcome should be documented as BLOCKED, not classified as a site bug without independent reproduction.
