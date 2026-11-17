@@ -1,6 +1,6 @@
 {
   "openapi":"3.1.0",
-  "info":{"title":"Private interactive aiKit browser queue","version":"1.0.0","description":"Operate the user's local browser worker through the private queue. Requires a running browser-lane worker. No screenshots, credentials or arbitrary code are transferred."},
+  "info":{"title":"Private interactive aiKit browser queue","version":"1.1.0","description":"Operate the user's local browser worker through the private queue. ACT/BATCH additionally support dismiss on a returned verified backdrop target. No selectors, coordinates, uploads, mutations or generation permissions can be supplied. Requires a running browser-lane worker. No screenshots, credentials or arbitrary code are transferred."},
   "servers":[{"url":"https://api.github.com"}],
   "paths":{
     "/repos/Bequcho/beqson-qa-platform/issues":{

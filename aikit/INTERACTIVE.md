@@ -25,6 +25,10 @@ Create issues through the connected GitHub issue-write tool. Read comments for t
 
 ## Commands
 
+Phase 2 adds the reviewed `dismiss` action and structural field/form observations.
+See [PHASE2.md](PHASE2.md) for its exact protocol, mock-only file/lifecycle
+adapters, signed-grant policy and disabled production capabilities.
+
 | Command | Parameters | Actual behavior |
 |---|---|---|
 | BROWSER_OPEN | url; optional viewport=desktop/mobile, checklistId | Navigate within allowed aiKit UI routes and capture state |

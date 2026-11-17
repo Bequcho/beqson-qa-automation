@@ -23,7 +23,7 @@ export function validateAssertion(assertion) {
 }
 export function validateAction(action) {
   if(!object(action,['op','target','value','key','optionId','direction','amount','assertions']))fail('INVALID_BROWSER_ACTION');
-  const keys={click:['target'],fill:['target','value'],press:['target','key'],select:['target','optionId'],scroll:['direction','amount'],back:[],inspect:['target']}[action.op];
+  const keys={click:['target'],dismiss:['target'],fill:['target','value'],press:['target','key'],select:['target','optionId'],scroll:['direction','amount'],back:[],inspect:['target']}[action.op];
   if(!keys||Object.keys(action).some(key=>!['op','assertions',...keys].includes(key)))fail('INVALID_BROWSER_ACTION');
   if(keys.includes('target')) {validateTarget(action.target);if(action.target.ref==='acted')fail('ACTED_TARGET_ONLY_FOR_ASSERTIONS');}
   if(action.op==='fill'&&!text(action.value,256))fail('INVALID_BROWSER_VALUE');
