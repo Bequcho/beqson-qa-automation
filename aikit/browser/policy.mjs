@@ -30,6 +30,7 @@ export function descriptorFingerprint(descriptor) {
   return createHash('sha256').update(JSON.stringify([descriptor.tag,descriptor.role,descriptor.label,descriptor.href,descriptor.type,descriptor.form,descriptor.controls,descriptor.inputMode])).digest('hex');
 }
 export function classify(descriptor) {
+  if(descriptor.verifiedBackdrop==='aikit-drawer')return 'backdrop';
   const label=descriptor.label||'';
   if(descriptor.sensitive||/password|token|api.?key|credit.?card|consent/i.test(label))return 'sensitive';
   if(/generate|create|save|publish|delete|remove|buy|purchase|pay|send|invite|subscribe|account|billing|logout|sign out|clone|record/i.test(label))return 'sensitive';
@@ -44,6 +45,7 @@ export function allowedOperations(descriptor) {
   const kind=classify(descriptor),ops=['inspect'];
   if(!descriptor.enabled||descriptor.ambiguous)return ops;
   if(['navigation','disclosure'].includes(kind))ops.push('click');
+  if(kind==='backdrop')ops.push('dismiss');
   if(kind==='search')ops.push('fill','press');
   if(kind==='filter')ops.push('select','press');
   return ops;

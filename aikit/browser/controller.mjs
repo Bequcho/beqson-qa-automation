@@ -7,6 +7,7 @@ import {Targets,describe} from './dom.mjs';
 import {allowedUrl,requestAllowed,authorizeAction} from './policy.mjs';
 import {validateBrowserCommand} from './protocol.mjs';
 import {classifyBrowserError} from './diagnostics.mjs';
+import {verifyDismissed} from './backdrops.mjs';
 
 export class BrowserController {
   constructor({local,origin='https://aikit.ai',authSource,headless=true}={}) {
@@ -86,6 +87,7 @@ export class BrowserController {
     if(!acted.descriptor.enabled&&step.op!=='inspect')throw Error('TARGET_DISABLED');
     await authorizeAction({...acted.descriptor,key:step.key},step.op,{local:this.local,authorizationId,url:this.page.url(),origin:this.origin});
     if(step.op==='click')await acted.handle.click({timeout:5000});
+    if(step.op==='dismiss'){await acted.handle.click({position:acted.descriptor.dismissPoint,timeout:5000});await verifyDismissed(this.page);}
     if(step.op==='fill')await acted.handle.fill(step.value,{timeout:5000});
     if(step.op==='press')await acted.handle.press(step.key,{timeout:5000});
     if(step.op==='select') {

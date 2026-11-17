@@ -1,10 +1,11 @@
 import {randomBytes,createHash} from 'node:crypto';
 import {classify,allowedOperations,descriptorFingerprint} from './policy.mjs';
+import {BACKDROP_SELECTOR,backdropDescriptor} from './backdrops.mjs';
 
 export const opaque=prefix=>prefix+'_'+randomBytes(12).toString('hex');
-const SELECTOR='button,a[href],input,textarea,select,[role="button"],[role="tab"],[role="searchbox"],[role="combobox"],[role="checkbox"],[role="radio"]';
+const SELECTOR='button,a[href],input,textarea,select,[role="button"],[role="tab"],[role="searchbox"],[role="combobox"],[role="checkbox"],[role="radio"],'+BACKDROP_SELECTOR;
 export async function describe(handle) {
-  return handle.evaluate(element=>{
+  const descriptor=await handle.evaluate(element=>{
     const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
     const visible=rect.width>0&&rect.height>0&&rect.right>0&&rect.bottom>0&&rect.left<innerWidth&&rect.top<innerHeight&&style.display!=='none'&&style.visibility!=='hidden';
     // Measure pointer reachability without revealing which overlay is on top.
@@ -18,8 +19,11 @@ export async function describe(handle) {
     const label=(element.getAttribute('aria-label')||by||labels||element.getAttribute('placeholder')||element.innerText||element.getAttribute('title')||'').replace(/\s+/g,' ').trim().slice(0,500);
     let role=element.getAttribute('role')||(tag==='a'?'link':tag==='button'?'button':tag==='select'?'combobox':tag==='textarea'?'textbox':tag==='input'?(type==='search'?'searchbox':['checkbox','radio'].includes(type)?type:'textbox'):'other');
     const expanded=element.getAttribute('aria-expanded');
-    return {tag,type,label,role,visible,hitTest,href:element.getAttribute('href'),form:!!element.closest('form'),inputMode:element.getAttribute('inputmode'),controls:element.getAttribute('aria-controls'),expanded:expanded===null?null:expanded==='true',enabled:!element.disabled&&element.getAttribute('aria-disabled')!=='true',sensitive:['password','file','hidden'].includes(type)||element.getAttribute('autocomplete')==='current-password',options:tag==='select'?[...element.options].slice(0,30).map((option,index)=>({index,value:option.value,label:option.textContent||'',selected:option.selected})):[]};
+    const field=['input','textarea','select'].includes(tag)?{required:element.required===true,invalid:element.getAttribute('aria-invalid')==='true'||element.validity?.valid===false,readOnly:element.readOnly===true,multiline:tag==='textarea',inputKind:['text','search','email','number','password','file','checkbox','radio'].includes(type)?type:tag==='textarea'?'text':'other',multiple:element.multiple===true}:null;
+    return {tag,type,label,role,visible,hitTest,field,href:element.getAttribute('href'),form:!!element.closest('form'),inputMode:element.getAttribute('inputmode'),controls:element.getAttribute('aria-controls'),expanded:expanded===null?null:expanded==='true',enabled:!element.disabled&&element.getAttribute('aria-disabled')!=='true',sensitive:['password','file','hidden'].includes(type)||element.getAttribute('autocomplete')==='current-password',options:tag==='select'?[...element.options].slice(0,30).map((option,index)=>({index,value:option.value,label:option.textContent||'',selected:option.selected})):[]};
   });
+  if(descriptor.tag==='div')Object.assign(descriptor,await backdropDescriptor(handle));
+  return descriptor;
 }
 
 export class Targets {
@@ -52,9 +56,10 @@ export class Targets {
       const documentWidth=Math.max(viewportWidth,root.scrollWidth||0,body?.scrollWidth||0);
       const layout={viewportWidth,documentWidth,horizontalOverflowPx:Math.max(0,documentWidth-viewportWidth),
         scrollHeight:Math.max(root.scrollHeight||0,body?.scrollHeight||0),scrollY:Math.max(0,Math.round(window.scrollY))};
-      return {layout,headings:[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).slice(0,12).map(n=>n.textContent||''),validationMessages:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],[aria-invalid="true"]')].filter(visible).slice(0,10).map(n=>n.validationMessage||n.textContent||'')};
+      const semantics={forms:document.forms.length,invalidFields:document.querySelectorAll('[aria-invalid="true"],input:invalid,textarea:invalid,select:invalid').length,requiredFields:document.querySelectorAll('[required]').length,fileInputs:document.querySelectorAll('input[type="file"]').length,downloadControls:document.querySelectorAll('a[download]').length,dialogs:document.querySelectorAll('[role="dialog"],[aria-modal="true"]').length,progressIndicators:document.querySelectorAll('progress,[role="progressbar"],[aria-busy="true"]').length,alerts:document.querySelectorAll('[role="alert"]').length};
+      return {layout,semantics,headings:[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter(visible).slice(0,12).map(n=>n.textContent||''),validationMessages:[...document.querySelectorAll('[role="alert"],[aria-live="assertive"],[aria-invalid="true"]')].filter(visible).slice(0,10).map(n=>n.validationMessage||n.textContent||'')};
     });
-    const snapshot={snapshotId,sessionId,url:page.url(),viewport,...extra,truncated:handles.length>300||records.length===60,controls:records.map(record=>({elementId:record.elementId,role:record.descriptor.role,label:record.descriptor.label,kind:classify(record.descriptor),enabled:record.descriptor.enabled,ambiguous:record.descriptor.ambiguous,hitTest:record.descriptor.hitTest,...(record.descriptor.expanded!==null?{expanded:record.descriptor.expanded}:{}),allowedOps:allowedOperations(record.descriptor),options:record.options.map(({optionId,label,selected})=>({optionId,label,selected}))}))};
+    const snapshot={snapshotId,sessionId,url:page.url(),viewport,...extra,truncated:handles.length>300||records.length===60,controls:records.map(record=>({elementId:record.elementId,role:record.descriptor.role,label:record.descriptor.label,kind:classify(record.descriptor),enabled:record.descriptor.enabled,ambiguous:record.descriptor.ambiguous,hitTest:record.descriptor.hitTest,field:record.descriptor.field,...(record.descriptor.expanded!==null?{expanded:record.descriptor.expanded}:{}),allowedOps:allowedOperations(record.descriptor),options:record.options.map(({optionId,label,selected})=>({optionId,label,selected}))}))};
     const entry={snapshotId,at:Date.now(),url:page.url(),records,snapshot};
     this.snapshots.set(snapshotId,entry);this.latest=entry;
     while(this.snapshots.size>8)this.snapshots.delete(this.snapshots.keys().next().value);
@@ -75,6 +80,7 @@ export class Targets {
     const current=await describe(record.handle).catch(()=>null);
     if(!current?.visible||descriptorFingerprint(current)!==record.fingerprint)throw Error('STALE_TARGET');
     if(record.descriptor.ambiguous)throw Error('AMBIGUOUS_TARGET');
+    if(current.verifiedBackdrop){if(await page.locator(BACKDROP_SELECTOR).count()!==1)throw Error('AMBIGUOUS_TARGET');return {...record,descriptor:current};}
     // Detect a duplicate inserted after inspection rather than silently picking one.
     const duplicates=await page.locator(SELECTOR).evaluateAll((nodes,wanted)=>{
       const fingerprint=node=>{
